@@ -1,7 +1,11 @@
 #!/usr/bin/python
-import re, json
+# -*- coding: UTF-8 -*-
+import re, json, sys
 
-"""Convert http json result to Go struct"""
+"""
+Convert http json result to Go struct
+usage: ./cov_json_to_struct.py '{"head_block_number":72958298,"head_block_id":"0459415adbcbb2162989d536daf3f84580932afa"}'
+"""
 
 def name_convert_to_camel(name: str) -> str:
     name = name.capitalize()
@@ -18,8 +22,11 @@ def cov_data_type(t) -> str:
     else:
         return 'unknown'
 
-"""Replace the json_data"""
-json_data = '{"can_vote": true,"head_block_number":72957803,"head_block_id":"04593f6b752d4505140bab7d133131c0130cf17f"}'
+try:
+    json_data = sys.argv[1]
+except e:
+    print('unexpect error')
+    print(e)
 
 result = []
 data = json.loads(json_data)
@@ -28,5 +35,10 @@ for k in data:
     data_type = cov_data_type(data[k])
     result.append("\t"+struct_item+" "+data_type)
 
+print("")
+print("")
+print("")
+print("")
+print("The result is:")
 print("\n".join(result))
 
