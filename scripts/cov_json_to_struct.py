@@ -33,7 +33,7 @@ data = json.loads(json_data)
 for k in data:
     struct_item = name_convert_to_camel(k)
     data_type = cov_data_type(data[k])
-    result.append("\t"+struct_item+" "+data_type)
+    result.append("\t%s %s `json:\"%s\"`" %(struct_item, data_type, k))
 
 print("")
 print("")
