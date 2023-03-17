@@ -1,5 +1,6 @@
 name: Test
-on: [push, pull_request]
+on:
+  workflow_dispatch:
 
 env:
   # go needs absolute directories, using the $HOME variable doesn't work here.
