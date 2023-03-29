@@ -20,3 +20,20 @@ func TestFromStrToStr(t *testing.T) {
 		}
 	}
 }
+
+func TestPublicKeyFromWif(t *testing.T) {
+	for _, d := range data {
+		p := &PublicKey{}
+		err := p.FromWif(d.WIF)
+		if err != nil {
+			t.Error(err)
+		}
+
+		expected := d.PublicKey
+		got := p.ToStr()
+
+		if got != expected {
+			t.Errorf("expected %v, got %v", expected, got)
+		}
+	}
+}

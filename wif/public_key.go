@@ -53,11 +53,25 @@ func (p *PublicKey) FromStr(pubKey string) (err error) {
 	return err
 }
 
+func (p *PublicKey) FromWif(wif string) (err error) {
+	tmp := &PrivateKey{}
+	err = tmp.FromWif(wif)
+	if err != nil {
+		return
+	}
+	err = p.FromStr(tmp.ToPubKeyStr())
+	return
+}
+
 func (p *PublicKey) ToStr() string {
 	checkSum := calcHash(p.Raw.SerializeCompressed(), ripemd160.New())
 	pubByte := append(p.Raw.SerializeCompressed(), checkSum[0:4]...)
 	pubStr := base58.Encode(pubByte)
 	return consts.ADDRESS_PREFIX + pubStr
+}
+
+func (p *PublicKey) ToByte() []byte {
+	return p.Raw.SerializeCompressed()
 }
 
 func calcHash(buf []byte, hasher hash.Hash) []byte {

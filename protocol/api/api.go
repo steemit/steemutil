@@ -1,4 +1,4 @@
-package protocol
+package api
 
 type DynamicGlobalProperties struct {
 	HeadBlockNumber                 uint   `json:"head_block_number"`
