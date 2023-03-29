@@ -9,7 +9,7 @@ import (
 const Layout = `"2006-01-02T15:04:05"`
 
 type Time struct {
-	*time.Time
+	Time *time.Time
 }
 
 func (t *Time) MarshalJSON() ([]byte, error) {

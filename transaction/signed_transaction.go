@@ -21,7 +21,7 @@ type SignedTransaction struct {
 func NewSignedTransaction(tx *Transaction) *SignedTransaction {
 	if tx.Expiration == nil {
 		expiration := time.Now().Add(30 * time.Second)
-		tx.Expiration = &protocol.Time{&expiration}
+		tx.Expiration = &protocol.Time{Time: &expiration}
 	}
 
 	return &SignedTransaction{tx}

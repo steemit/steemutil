@@ -17,7 +17,7 @@ func init() {
 	tx = &Transaction{
 		RefBlockNum:    36029,
 		RefBlockPrefix: 1164960351,
-		Expiration:     &protocol.Time{&expiration},
+		Expiration:     &protocol.Time{Time: &expiration},
 	}
 	tx.PushOperation(&protocol.VoteOperation{
 		Voter:    "xeroc",
