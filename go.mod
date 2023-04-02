@@ -13,5 +13,6 @@ require (
 
 require (
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1 // indirect
+	github.com/jarcoal/httpmock v1.3.0
 	golang.org/x/sys v0.0.0-20200814200057-3d37ad5750ed // indirect
 )

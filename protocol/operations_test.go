@@ -1,7 +1,6 @@
 package protocol
 
 import (
-	// Stdlib
 	"bytes"
 	"encoding/hex"
 	"testing"
