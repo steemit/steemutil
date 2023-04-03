@@ -50,7 +50,7 @@ type Block struct {
 	Witness               string         `json:"witness"`
 	WitnessSignature      string         `json:"witness_signature"`
 	TransactionMerkleRoot string         `json:"transaction_merkle_root"`
-	Transactions          []any          `json:"transactions"`
+	Transactions          []Transaction  `json:"transactions"`
 	Timestamp             *protocol.Time `json:"timestamp"`
 	Extensions            []any          `json:"extensions"`
 	SigningKey            string         `json:"signing_key"`
