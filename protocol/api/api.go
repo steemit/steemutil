@@ -1,5 +1,7 @@
 package api
 
+import "github.com/steemit/steemutil/protocol"
+
 type DynamicGlobalProperties struct {
 	HeadBlockNumber                 uint   `json:"head_block_number"`
 	HeadBlockId                     string `json:"head_block_id"`
@@ -40,4 +42,29 @@ type DynamicGlobalProperties struct {
 	SpsFundPercent                  uint   `json:"sps_fund_percent"`
 	SpsIntervalLedger               string `json:"sps_interval_ledger"`
 	DownvotePoolPercent             uint   `json:"downvote_pool_percent"`
+}
+
+type Block struct {
+	BlockId               string         `json:"block_id"`
+	Previous              string         `json:"previous"`
+	Witness               string         `json:"witness"`
+	WitnessSignature      string         `json:"witness_signature"`
+	TransactionMerkleRoot string         `json:"transaction_merkle_root"`
+	Transactions          []any          `json:"transactions"`
+	Timestamp             *protocol.Time `json:"timestamp"`
+	Extensions            []any          `json:"extensions"`
+	SigningKey            string         `json:"signing_key"`
+	TransactionIds        []string       `json:"transaction_ids"`
+}
+
+type Transaction struct {
+	RefBlockNum    protocol.UInt16     `json:"ref_block_num"`
+	RefBlockPrefix protocol.UInt32     `json:"ref_block_prefix"`
+	Expiration     *protocol.Time      `json:"expiration"`
+	Operations     protocol.Operations `json:"operations"`
+	Signatures     []string            `json:"signatures"`
+	Extensions     []any               `json:"extensions"`
+	TransactionId  string              `json:"transaction_id"`
+	BlockNum       protocol.UInt32     `json:"block_num"`
+	TransactionNum protocol.UInt       `json:"transaction_num"`
 }
