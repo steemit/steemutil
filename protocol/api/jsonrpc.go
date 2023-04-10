@@ -1,15 +1,17 @@
 package api
 
+import "github.com/steemit/steemutil/protocol"
+
 type RpcSendData struct {
-	Id      uint   `json:"id"`
-	JsonRpc string `json:"jsonrpc"`
-	Method  string `json:"method"`
-	Params  []any  `json:"params"`
+	Id      protocol.UInt `json:"id"`
+	JsonRpc string        `json:"jsonrpc"`
+	Method  string        `json:"method"`
+	Params  []any         `json:"params"`
 }
 
 type RpcResultData struct {
-	Id      uint   `json:"id"`
-	JsonRpc string `json:"jsonrpc"`
-	Result  any    `json:"result,omitempty"`
-	Error   any    `json:"error,omitempty"`
+	Id      protocol.UInt `json:"id"`
+	JsonRpc string        `json:"jsonrpc"`
+	Result  any           `json:"result,omitempty"`
+	Error   any           `json:"error,omitempty"`
 }
