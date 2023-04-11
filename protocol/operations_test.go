@@ -31,3 +31,30 @@ func TestVoteOperation_MarshalTransaction(t *testing.T) {
 		t.Errorf("expected %v, got %v", expectedHex, serializedHex)
 	}
 }
+
+func TestCommentOperation_MarshalTransaction(t *testing.T) {
+	op := &CommentOperation{
+		Author:         "ety001",
+		Title:          "test post",
+		Permlink:       "ety001-test-post",
+		ParentAuthor:   "",
+		ParentPermlink: "test",
+		Body:           "test post body",
+		JsonMetadata:   "{}",
+	}
+
+	expectedHex := "1306657479303031097465737420706f7374106574793030312d746573742d706f73740004746573740e7465737420706f737420626f6479027b7d"
+
+	var b bytes.Buffer
+	encoder := encoder.NewEncoder(&b)
+
+	if err := encoder.Encode(op); err != nil {
+		t.Error(err)
+	}
+
+	serializedHex := hex.EncodeToString(b.Bytes())
+
+	if serializedHex != expectedHex {
+		t.Errorf("expected %v, got %v", expectedHex, serializedHex)
+	}
+}
