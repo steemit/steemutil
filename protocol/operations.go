@@ -305,7 +305,7 @@ func (op *CommentOperation) IsStoryOperation() bool {
 
 func (op *CommentOperation) MarshalTransaction(encoderObj *encoder.Encoder) error {
 	enc := encoder.NewRollingEncoder(encoderObj)
-	enc.EncodeUVarint(uint64(TypeCommentOptions.Code()))
+	enc.EncodeUVarint(uint64(op.Type().Code()))
 	enc.Encode(op.ParentAuthor)
 	enc.Encode(op.ParentPermlink)
 	enc.Encode(op.Author)
