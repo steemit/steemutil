@@ -20,7 +20,7 @@ type SignedTransaction struct {
 
 func NewSignedTransaction(tx *Transaction) *SignedTransaction {
 	if tx.Expiration == nil {
-		expiration := time.Now().Add(30 * time.Second)
+		expiration := time.Now().Add(600 * time.Second)
 		tx.Expiration = &protocol.Time{Time: &expiration}
 	}
 
@@ -75,8 +75,11 @@ func (tx *SignedTransaction) Sign(privKeys []*wif.PrivateKey, chain *Chain) erro
 	// Sign digest
 	sigs := make([][]byte, 0, len(privKeys))
 	for _, v := range privKeys {
-		sig := ecdsa.Sign(v.Raw.PrivKey, digest)
-		sigs = append(sigs, sig.Serialize())
+		sig, err := ecdsa.SignCompact(v.Raw.PrivKey, digest, true)
+		if err != nil {
+			return err
+		}
+		sigs = append(sigs, sig)
 	}
 
 	// Set the signature array in the transaction.
