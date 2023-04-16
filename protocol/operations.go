@@ -282,11 +282,11 @@ func (op *AccountWitnessProxyOperation) Data() interface{} {
 // In case Title is filled in and ParentAuthor is empty, it is a new post.
 // The post category can be read from ParentPermlink.
 type CommentOperation struct {
-	Author         string `json:"author"`
-	Title          string `json:"title"`
-	Permlink       string `json:"permlink"`
 	ParentAuthor   string `json:"parent_author"`
 	ParentPermlink string `json:"parent_permlink"`
+	Author         string `json:"author"`
+	Permlink       string `json:"permlink"`
+	Title          string `json:"title"`
 	Body           string `json:"body"`
 	JsonMetadata   string `json:"json_metadata"`
 }
@@ -306,11 +306,11 @@ func (op *CommentOperation) IsStoryOperation() bool {
 func (op *CommentOperation) MarshalTransaction(encoderObj *encoder.Encoder) error {
 	enc := encoder.NewRollingEncoder(encoderObj)
 	enc.EncodeUVarint(uint64(TypeCommentOptions.Code()))
-	enc.Encode(op.Author)
-	enc.Encode(op.Title)
-	enc.Encode(op.Permlink)
 	enc.Encode(op.ParentAuthor)
 	enc.Encode(op.ParentPermlink)
+	enc.Encode(op.Author)
+	enc.Encode(op.Permlink)
+	enc.Encode(op.Title)
 	enc.Encode(op.Body)
 	enc.Encode(op.JsonMetadata)
 	return enc.Err()
