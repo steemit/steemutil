@@ -10,37 +10,92 @@ import (
 // dataObjects keeps mapping operation type -> operation data object.
 // This is used later on to unmarshal operation data based on the operation type.
 var dataObjects = map[OpType]Operation{
-	TypeVote:              &VoteOperation{},
-	TypeComment:           &CommentOperation{},
+	TypeVote:    &VoteOperation{},
+	TypeComment: &CommentOperation{},
+
 	TypeTransfer:          &TransferOperation{},
 	TypeTransferToVesting: &TransferToVestingOperation{},
 	TypeWithdrawVesting:   &WithdrawVestingOperation{},
-	TypeLimitOrderCreate:  &LimitOrderCreateOperation{},
-	TypeLimitOrderCancel:  &LimitOrderCancelOperation{},
-	TypeFeedPublish:       &FeedPublishOperation{},
-	TypeConvert:           &ConvertOperation{},
-	TypeAccountCreate:     &AccountCreateOperation{},
-	TypeAccountUpdate:     &AccountUpdateOperation{},
+
+	TypeLimitOrderCreate: &LimitOrderCreateOperation{},
+	TypeLimitOrderCancel: &LimitOrderCancelOperation{},
+
+	TypeFeedPublish: &FeedPublishOperation{},
+	TypeConvert:     &ConvertOperation{},
+
+	TypeAccountCreate: &AccountCreateOperation{},
+	TypeAccountUpdate: &AccountUpdateOperation{},
+
 	// TypeWitnessUpdate:  &WitnessUpdateOperation{},
 	TypeAccountWitnessVote:  &AccountWitnessVoteOperation{},
 	TypeAccountWitnessProxy: &AccountWitnessProxyOperation{},
-	TypePOW:                 &POWOperation{},
+
+	TypePOW: &POWOperation{},
+
 	// TypeCustom:           &CustomOperation{},
+
 	TypeReportOverProduction: &ReportOverProductionOperation{},
-	TypeDeleteComment:        &DeleteCommentOperation{},
-	TypeCustomJSON:           &CustomJSONOperation{},
-	TypeCommentOptions:       &CommentOptionsOperation{},
+
+	TypeDeleteComment:  &DeleteCommentOperation{},
+	TypeCustomJSON:     &CustomJSONOperation{},
+	TypeCommentOptions: &CommentOptionsOperation{},
 	// TypeSetWithdrawVestingRoute: &SetWithdrawVestingRouteOperation{},
 	// TypeLimitOrderCreate2:       &LimitOrderCreate2Operation{},
-	// TypeChallengeAuthority:      &ChallengeAuthorityOperation{},
-	// TypeProveAuthority:          &ProveAuthorityOperation{},
-	// TypeRequestAccountRecovery:  &RequestAccountRecoveryOperation{},
+	// TypeClaimAccount:
+	// TypeCreateClaimedAccount:
+	// TypeRequestAccountRecovery:
 	// TypeRecoverAccount:          &RecoverAccountOperation{},
 	// TypeChangeRecoveryAccount:   &ChangeRecoverAccountOperation{},
 	// TypeEscrowTransfer:          &EscrowTransferOperation{},
 	// TypeEscrowDispute:           &EscrowDisputeOperation{},
 	// TypeEscrowRelease:           &EescrowReleaseOperation{},
 	// TypePOW2:                    &POW2Operation{},
+	// TypeEscrowApproveOperation:
+	// TypeTransferToSavings:
+	// TypeTransferFromSavings:
+	// TypeCancelTransferFromSavings:
+	// TypeCustomBinary:
+	// TypeDeclineVotingRights:
+	// TypeResetAccount:
+	// TypeSetResetAccount:
+	// TypeClaimRewardBalance:
+	// TypeDelegateVestingShares:
+	// TypeAccountCreateWithDelegation:
+	// TypeWitnessSetProperties:
+	// TypeAccountUpdate2:
+	// TypeCreateProposal:
+	// TypeUpdateProposalVotes:
+	// TypeRemoveProposal:
+
+	// TypeClaimRewardBalance2:
+	// TypeVote2:
+
+	// TypeSmtSetup,
+	// TypeSmtSetupEmissions,
+	// TypeSmtSetupIcoTier,
+	// TypeSmtSetSetupParameters,
+	// TypeSmtSetRuntimeParameters,
+	// TypeSmtCreate,
+	// TypeSmtContribute,
+
+	// TypeFillConvertRequest,
+	// TypeAuthorReward,
+	// TypeCurationReward,
+	// TypeCommentReward,
+	// TypeLiquidityReward,
+	// TypeInterest,
+	// TypeFillVestingWithdraw,
+	// TypeFillOrder,
+	// TypeShutdownWitness,
+	// TypeFillTransferFromSavings,
+	// TypeHardfork,
+	// TypeCommentPayoutUpdate,
+	// TypeReturnVestingDelegation,
+	// TypeCommentBenefactorReward,
+	// TypeProducerReward,
+	// TypeClearNullAccountBalance,
+	// TypeProposalPay,
+	// TypeSpsFund,
 }
 
 // Operation represents an operation stored in a transaction.
