@@ -26,76 +26,75 @@ var dataObjects = map[OpType]Operation{
 	TypeAccountCreate: &AccountCreateOperation{},
 	TypeAccountUpdate: &AccountUpdateOperation{},
 
-	// TypeWitnessUpdate:  &WitnessUpdateOperation{},
+	TypeWitnessUpdate:       &WitnessUpdateOperation{},
 	TypeAccountWitnessVote:  &AccountWitnessVoteOperation{},
 	TypeAccountWitnessProxy: &AccountWitnessProxyOperation{},
 
 	TypePOW: &POWOperation{},
 
-	// TypeCustom:           &CustomOperation{},
+	TypeCustom: &CustomOperation{},
 
 	TypeReportOverProduction: &ReportOverProductionOperation{},
 
-	TypeDeleteComment:  &DeleteCommentOperation{},
-	TypeCustomJSON:     &CustomJSONOperation{},
-	TypeCommentOptions: &CommentOptionsOperation{},
-	// TypeSetWithdrawVestingRoute: &SetWithdrawVestingRouteOperation{},
-	// TypeLimitOrderCreate2:       &LimitOrderCreate2Operation{},
-	// TypeClaimAccount:
-	// TypeCreateClaimedAccount:
-	// TypeRequestAccountRecovery:
-	// TypeRecoverAccount:          &RecoverAccountOperation{},
-	// TypeChangeRecoveryAccount:   &ChangeRecoverAccountOperation{},
-	// TypeEscrowTransfer:          &EscrowTransferOperation{},
-	// TypeEscrowDispute:           &EscrowDisputeOperation{},
-	// TypeEscrowRelease:           &EescrowReleaseOperation{},
-	// TypePOW2:                    &POW2Operation{},
-	// TypeEscrowApproveOperation:
-	// TypeTransferToSavings:
-	// TypeTransferFromSavings:
-	// TypeCancelTransferFromSavings:
-	// TypeCustomBinary:
-	// TypeDeclineVotingRights:
-	// TypeResetAccount:
-	// TypeSetResetAccount:
-	// TypeClaimRewardBalance:
-	// TypeDelegateVestingShares:
-	// TypeAccountCreateWithDelegation:
-	// TypeWitnessSetProperties:
-	// TypeAccountUpdate2:
-	// TypeCreateProposal:
-	// TypeUpdateProposalVotes:
-	// TypeRemoveProposal:
+	TypeDeleteComment:               &DeleteCommentOperation{},
+	TypeCustomJSON:                  &CustomJSONOperation{},
+	TypeCommentOptions:              &CommentOptionsOperation{},
+	TypeSetWithdrawVestingRoute:     &SetWithdrawVestingRouteOperation{},
+	TypeLimitOrderCreate2:           &LimitOrderCreate2Operation{},
+	TypeClaimAccount:                &ClaimAccountOperation{},
+	TypeCreateClaimedAccount:        &CreateClaimedAccountOperation{},
+	TypeRequestAccountRecovery:      &RequestAccountRecoveryOperation{},
+	TypeRecoverAccount:              &RecoverAccountOperation{},
+	TypeChangeRecoveryAccount:       &ChangeRecoverAccountOperation{},
+	TypeEscrowTransfer:              &EscrowTransferOperation{},
+	TypeEscrowDispute:               &EscrowDisputeOperation{},
+	TypeEscrowRelease:               &EescrowReleaseOperation{},
+	TypePOW2:                        &POW2Operation{},
+	TypeEscrowApprove:               &EscrowApproveOperation{},
+	TypeTransferToSavings:           &TransferToSavingsOperation{},
+	TypeTransferFromSavings:         &TransferFromSavingsOperation{},
+	TypeCancelTransferFromSavings:   &CancelTransferFromSavingsOperation{},
+	TypeCustomBinary:                &CustomBinaryOperation{},
+	TypeDeclineVotingRights:         &DeclineVotingRightsOperation{},
+	TypeResetAccount:                &ResetAccountOperation{},
+	TypeSetResetAccount:             &SetResetAccountOperation{},
+	TypeClaimRewardBalance:          &ClaimRewardBalanceOperation{},
+	TypeDelegateVestingShares:       &DelegateVestingSharesOperation{},
+	TypeAccountCreateWithDelegation: &AccountCreateWithDelegationOperation{},
+	TypeWitnessSetProperties:        &WitnessSetPropertiesOperation{},
+	TypeAccountUpdate2:              &AccountUpdate2Operation{},
+	TypeCreateProposal:              &CreateProposalOperation{},
+	TypeUpdateProposalVotes:         &UpdateProposalVotesOperation{},
+	TypeRemoveProposal:              &RemoveProposalOperation{},
+	TypeClaimRewardBalance2:         &ClaimRewardBalance2Operation{},
+	TypeVote2:                       &Vote2Operation{},
 
-	// TypeClaimRewardBalance2:
-	// TypeVote2:
+	TypeSmtSetup:                &SmtSetupOperation{},
+	TypeSmtSetupEmissions:       &SmtSetupEmissionsOperation{},
+	TypeSmtSetupIcoTier:         &SmtSetupIcoTierOperation{},
+	TypeSmtSetSetupParameters:   &SmtSetSetupParametersOperation{},
+	TypeSmtSetRuntimeParameters: &SmtSetRuntimeParaetersOperation{},
+	TypeSmtCreate:               &SmtCreateOperation{},
+	TypeSmtContribute:           &SmtContributeOperation{},
 
-	// TypeSmtSetup,
-	// TypeSmtSetupEmissions,
-	// TypeSmtSetupIcoTier,
-	// TypeSmtSetSetupParameters,
-	// TypeSmtSetRuntimeParameters,
-	// TypeSmtCreate,
-	// TypeSmtContribute,
-
-	// TypeFillConvertRequest,
-	// TypeAuthorReward,
-	// TypeCurationReward,
-	// TypeCommentReward,
-	// TypeLiquidityReward,
-	// TypeInterest,
-	// TypeFillVestingWithdraw,
-	// TypeFillOrder,
-	// TypeShutdownWitness,
-	// TypeFillTransferFromSavings,
-	// TypeHardfork,
-	// TypeCommentPayoutUpdate,
-	// TypeReturnVestingDelegation,
-	// TypeCommentBenefactorReward,
-	// TypeProducerReward,
-	// TypeClearNullAccountBalance,
-	// TypeProposalPay,
-	// TypeSpsFund,
+	TypeFillConvertRequest:      &FillConvertRequestOperation{},
+	TypeAuthorReward:            &AuthorRewardOperation{},
+	TypeCurationReward:          &CurationRewardOperation{},
+	TypeCommentReward:           &CommentRewardOperation{},
+	TypeLiquidityReward:         &LiquidityRewardOperation{},
+	TypeInterest:                &InterestOperation{},
+	TypeFillVestingWithdraw:     &FillVestingWithdrawOperation{},
+	TypeFillOrder:               &FillOrderOperation{},
+	TypeShutdownWitness:         &ShutdownWitnessOperation{},
+	TypeFillTransferFromSavings: &FillTransferFromSavingsOperation{},
+	TypeHardfork:                &HardforkOperation{},
+	TypeCommentPayoutUpdate:     &CommentPayoutUpdateOperation{},
+	TypeReturnVestingDelegation: &ReturnVestingDelegationOperation{},
+	TypeCommentBenefactorReward: &CommentBenefactorRewardOperation{},
+	TypeProducerReward:          &ProducerRewardOperation{},
+	TypeClearNullAccountBalance: &ClearNullAccountBalanceOperation{},
+	TypeProposalPay:             &ProposalPayOperation{},
+	TypeSpsFund:                 &SpsFundOperation{},
 }
 
 // Operation represents an operation stored in a transaction.

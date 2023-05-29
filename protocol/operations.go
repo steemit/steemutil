@@ -163,6 +163,18 @@ func (op *AccountUpdateOperation) Data() interface{} {
 	return op
 }
 
+func (op *AccountUpdateOperation) MarshalTransaction(encoderObj *encoder.Encoder) error {
+	enc := encoder.NewRollingEncoder(encoderObj)
+	enc.EncodeUVarint(uint64(TypeAccountUpdate.Code()))
+	enc.Encode(op.Account)
+	enc.Encode(op.Owner)
+	enc.Encode(op.Active)
+	enc.Encode(op.Posting)
+	enc.Encode(op.MemoKey)
+	enc.Encode(op.JsonMetadata)
+	return enc.Err()
+}
+
 // FC_REFLECT( steemit::chain::transfer_operation,
 //             (from)
 //             (to)
@@ -438,10 +450,580 @@ func (op *CommentOptionsOperation) Data() interface{} {
 	return op
 }
 
+type WitnessUpdateOperation struct {
+}
+
+func (op *WitnessUpdateOperation) Type() OpType {
+	return TypeWitnessUpdate
+}
+
+func (op *WitnessUpdateOperation) Data() interface{} {
+	return op
+}
+
+type CustomOperation struct {
+}
+
+func (op *CustomOperation) Type() OpType {
+	return TypeCustom
+}
+
+func (op *CustomOperation) Data() interface{} {
+	return op
+}
+
 type Authority struct {
 	AccountAuths    StringInt64Map `json:"account_auths"`
 	KeyAuths        StringInt64Map `json:"key_auths"`
 	WeightThreshold uint32         `json:"weight_threshold"`
+}
+
+func (props *Authority) MarshalTransaction(encoderObj *encoder.Encoder) error {
+	enc := encoder.NewRollingEncoder(encoderObj)
+	enc.Encode(props.AccountAuths)
+	enc.Encode(props.KeyAuths)
+	enc.Encode(props.WeightThreshold)
+	return enc.Err()
+}
+
+type SetWithdrawVestingRouteOperation struct {
+}
+
+func (op *SetWithdrawVestingRouteOperation) Type() OpType {
+	return TypeSetWithdrawVestingRoute
+}
+func (op *SetWithdrawVestingRouteOperation) Data() interface{} {
+	return op
+}
+
+type LimitOrderCreate2Operation struct {
+}
+
+func (op *LimitOrderCreate2Operation) Type() OpType {
+	return TypeLimitOrderCreate2
+}
+func (op *LimitOrderCreate2Operation) Data() interface{} {
+	return op
+}
+
+type ClaimAccountOperation struct {
+}
+
+func (op *ClaimAccountOperation) Type() OpType {
+	return TypeClaimAccount
+}
+func (op *ClaimAccountOperation) Data() interface{} {
+	return op
+}
+
+type CreateClaimedAccountOperation struct {
+}
+
+func (op *CreateClaimedAccountOperation) Type() OpType {
+	return TypeCreateClaimedAccount
+}
+func (op *CreateClaimedAccountOperation) Data() interface{} {
+	return op
+}
+
+type RequestAccountRecoveryOperation struct {
+}
+
+func (op *RequestAccountRecoveryOperation) Type() OpType {
+	return TypeRequestAccountRecovery
+}
+func (op *RequestAccountRecoveryOperation) Data() interface{} {
+	return op
+}
+
+type RecoverAccountOperation struct {
+}
+
+func (op *RecoverAccountOperation) Type() OpType {
+	return TypeRecoverAccount
+}
+func (op *RecoverAccountOperation) Data() interface{} {
+	return op
+}
+
+type ChangeRecoverAccountOperation struct {
+}
+
+func (op *ChangeRecoverAccountOperation) Type() OpType {
+	return TypeChangeRecoveryAccount
+}
+func (op *ChangeRecoverAccountOperation) Data() interface{} {
+	return op
+}
+
+type EscrowTransferOperation struct {
+}
+
+func (op *EscrowTransferOperation) Type() OpType {
+	return TypeEscrowTransfer
+}
+func (op *EscrowTransferOperation) Data() interface{} {
+	return op
+}
+
+type EscrowDisputeOperation struct {
+}
+
+func (op *EscrowDisputeOperation) Type() OpType {
+	return TypeEscrowDispute
+}
+func (op *EscrowDisputeOperation) Data() interface{} {
+	return op
+}
+
+type EescrowReleaseOperation struct {
+}
+
+func (op *EescrowReleaseOperation) Type() OpType {
+	return TypeEscrowRelease
+}
+func (op *EescrowReleaseOperation) Data() interface{} {
+	return op
+}
+
+type POW2Operation struct {
+}
+
+func (op *POW2Operation) Type() OpType {
+	return TypePOW2
+}
+func (op *POW2Operation) Data() interface{} {
+	return op
+}
+
+type EscrowApproveOperation struct {
+}
+
+func (op *EscrowApproveOperation) Type() OpType {
+	return TypeEscrowApprove
+}
+func (op *EscrowApproveOperation) Data() interface{} {
+	return op
+}
+
+type TransferToSavingsOperation struct {
+}
+
+func (op *TransferToSavingsOperation) Type() OpType {
+	return TypeTransferToSavings
+}
+func (op *TransferToSavingsOperation) Data() interface{} {
+	return op
+}
+
+type TransferFromSavingsOperation struct {
+}
+
+func (op *TransferFromSavingsOperation) Type() OpType {
+	return TypeTransferFromSavings
+}
+func (op *TransferFromSavingsOperation) Data() interface{} {
+	return op
+}
+
+type CancelTransferFromSavingsOperation struct {
+}
+
+func (op *CancelTransferFromSavingsOperation) Type() OpType {
+	return TypeCancelTransferFromSavings
+}
+func (op *CancelTransferFromSavingsOperation) Data() interface{} {
+	return op
+}
+
+type CustomBinaryOperation struct {
+}
+
+func (op *CustomBinaryOperation) Type() OpType {
+	return TypeCustomBinary
+}
+func (op *CustomBinaryOperation) Data() interface{} {
+	return op
+}
+
+type DeclineVotingRightsOperation struct {
+}
+
+func (op *DeclineVotingRightsOperation) Type() OpType {
+	return TypeDeclineVotingRights
+}
+func (op *DeclineVotingRightsOperation) Data() interface{} {
+	return op
+}
+
+type ResetAccountOperation struct {
+}
+
+func (op *ResetAccountOperation) Type() OpType {
+	return TypeResetAccount
+}
+func (op *ResetAccountOperation) Data() interface{} {
+	return op
+}
+
+type SetResetAccountOperation struct {
+}
+
+func (op *SetResetAccountOperation) Type() OpType {
+	return TypeSetResetAccount
+}
+func (op *SetResetAccountOperation) Data() interface{} {
+	return op
+}
+
+type ClaimRewardBalanceOperation struct {
+}
+
+func (op *ClaimRewardBalanceOperation) Type() OpType {
+	return TypeClaimRewardBalance
+}
+func (op *ClaimRewardBalanceOperation) Data() interface{} {
+	return op
+}
+
+type DelegateVestingSharesOperation struct {
+}
+
+func (op *DelegateVestingSharesOperation) Type() OpType {
+	return TypeDelegateVestingShares
+}
+func (op *DelegateVestingSharesOperation) Data() interface{} {
+	return op
+}
+
+type AccountCreateWithDelegationOperation struct {
+}
+
+func (op *AccountCreateWithDelegationOperation) Type() OpType {
+	return TypeAccountCreateWithDelegation
+}
+func (op *AccountCreateWithDelegationOperation) Data() interface{} {
+	return op
+}
+
+type WitnessSetPropertiesOperation struct {
+}
+
+func (op *WitnessSetPropertiesOperation) Type() OpType {
+	return TypeWitnessSetProperties
+}
+func (op *WitnessSetPropertiesOperation) Data() interface{} {
+	return op
+}
+
+type AccountUpdate2Operation struct {
+}
+
+func (op *AccountUpdate2Operation) Type() OpType {
+	return TypeAccountUpdate2
+}
+func (op *AccountUpdate2Operation) Data() interface{} {
+	return op
+}
+
+type CreateProposalOperation struct {
+}
+
+func (op *CreateProposalOperation) Type() OpType {
+	return TypeCreateProposal
+}
+func (op *CreateProposalOperation) Data() interface{} {
+	return op
+}
+
+type UpdateProposalVotesOperation struct {
+}
+
+func (op *UpdateProposalVotesOperation) Type() OpType {
+	return TypeUpdateProposalVotes
+}
+func (op *UpdateProposalVotesOperation) Data() interface{} {
+	return op
+}
+
+type RemoveProposalOperation struct {
+}
+
+func (op *RemoveProposalOperation) Type() OpType {
+	return TypeRemoveProposal
+}
+func (op *RemoveProposalOperation) Data() interface{} {
+	return op
+}
+
+type ClaimRewardBalance2Operation struct {
+}
+
+func (op *ClaimRewardBalance2Operation) Type() OpType {
+	return TypeClaimRewardBalance2
+}
+func (op *ClaimRewardBalance2Operation) Data() interface{} {
+	return op
+}
+
+type Vote2Operation struct {
+}
+
+func (op *Vote2Operation) Type() OpType {
+	return TypeVote2
+}
+func (op *Vote2Operation) Data() interface{} {
+	return op
+}
+
+type SmtSetupOperation struct {
+}
+
+func (op *SmtSetupOperation) Type() OpType {
+	return TypeSmtSetup
+}
+func (op *SmtSetupOperation) Data() interface{} {
+	return op
+}
+
+type SmtSetupEmissionsOperation struct {
+}
+
+func (op *SmtSetupEmissionsOperation) Type() OpType {
+	return TypeSmtSetupEmissions
+}
+func (op *SmtSetupEmissionsOperation) Data() interface{} {
+	return op
+}
+
+type SmtSetupIcoTierOperation struct {
+}
+
+func (op *SmtSetupIcoTierOperation) Type() OpType {
+	return TypeSmtSetupIcoTier
+}
+func (op *SmtSetupIcoTierOperation) Data() interface{} {
+	return op
+}
+
+type SmtSetSetupParametersOperation struct {
+}
+
+func (op *SmtSetSetupParametersOperation) Type() OpType {
+	return TypeSmtSetSetupParameters
+}
+func (op *SmtSetSetupParametersOperation) Data() interface{} {
+	return op
+}
+
+type SmtSetRuntimeParaetersOperation struct {
+}
+
+func (op *SmtSetRuntimeParaetersOperation) Type() OpType {
+	return TypeSmtSetRuntimeParameters
+}
+func (op *SmtSetRuntimeParaetersOperation) Data() interface{} {
+	return op
+}
+
+type SmtCreateOperation struct {
+}
+
+func (op *SmtCreateOperation) Type() OpType {
+	return TypeSmtCreate
+}
+func (op *SmtCreateOperation) Data() interface{} {
+	return op
+}
+
+type SmtContributeOperation struct {
+}
+
+func (op *SmtContributeOperation) Type() OpType {
+	return TypeSmtContribute
+}
+func (op *SmtContributeOperation) Data() interface{} {
+	return op
+}
+
+type FillConvertRequestOperation struct {
+}
+
+func (op *FillConvertRequestOperation) Type() OpType {
+	return TypeFillConvertRequest
+}
+func (op *FillConvertRequestOperation) Data() interface{} {
+	return op
+}
+
+type AuthorRewardOperation struct {
+}
+
+func (op *AuthorRewardOperation) Type() OpType {
+	return TypeAuthorReward
+}
+func (op *AuthorRewardOperation) Data() interface{} {
+	return op
+}
+
+type CurationRewardOperation struct {
+}
+
+func (op *CurationRewardOperation) Type() OpType {
+	return TypeCurationReward
+}
+func (op *CurationRewardOperation) Data() interface{} {
+	return op
+}
+
+type CommentRewardOperation struct {
+}
+
+func (op *CommentRewardOperation) Type() OpType {
+	return TypeCommentReward
+}
+func (op *CommentRewardOperation) Data() interface{} {
+	return op
+}
+
+type LiquidityRewardOperation struct {
+}
+
+func (op *LiquidityRewardOperation) Type() OpType {
+	return TypeLiquidityReward
+}
+func (op *LiquidityRewardOperation) Data() interface{} {
+	return op
+}
+
+type InterestOperation struct {
+}
+
+func (op *InterestOperation) Type() OpType {
+	return TypeInterest
+}
+func (op *InterestOperation) Data() interface{} {
+	return op
+}
+
+type FillVestingWithdrawOperation struct {
+}
+
+func (op *FillVestingWithdrawOperation) Type() OpType {
+	return TypeFillVestingWithdraw
+}
+func (op *FillVestingWithdrawOperation) Data() interface{} {
+	return op
+}
+
+type FillOrderOperation struct {
+}
+
+func (op *FillOrderOperation) Type() OpType {
+	return TypeFillOrder
+}
+func (op *FillOrderOperation) Data() interface{} {
+	return op
+}
+
+type ShutdownWitnessOperation struct {
+}
+
+func (op *ShutdownWitnessOperation) Type() OpType {
+	return TypeShutdownWitness
+}
+func (op *ShutdownWitnessOperation) Data() interface{} {
+	return op
+}
+
+type FillTransferFromSavingsOperation struct {
+}
+
+func (op *FillTransferFromSavingsOperation) Type() OpType {
+	return TypeFillTransferFromSavings
+}
+func (op *FillTransferFromSavingsOperation) Data() interface{} {
+	return op
+}
+
+type HardforkOperation struct {
+}
+
+func (op *HardforkOperation) Type() OpType {
+	return TypeHardfork
+}
+func (op *HardforkOperation) Data() interface{} {
+	return op
+}
+
+type CommentPayoutUpdateOperation struct {
+}
+
+func (op *CommentPayoutUpdateOperation) Type() OpType {
+	return TypeCommentPayoutUpdate
+}
+func (op *CommentPayoutUpdateOperation) Data() interface{} {
+	return op
+}
+
+type ReturnVestingDelegationOperation struct {
+}
+
+func (op *ReturnVestingDelegationOperation) Type() OpType {
+	return TypeReturnVestingDelegation
+}
+func (op *ReturnVestingDelegationOperation) Data() interface{} {
+	return op
+}
+
+type CommentBenefactorRewardOperation struct {
+}
+
+func (op *CommentBenefactorRewardOperation) Type() OpType {
+	return TypeCommentBenefactorReward
+}
+func (op *CommentBenefactorRewardOperation) Data() interface{} {
+	return op
+}
+
+type ProducerRewardOperation struct {
+}
+
+func (op *ProducerRewardOperation) Type() OpType {
+	return TypeProducerReward
+}
+func (op *ProducerRewardOperation) Data() interface{} {
+	return op
+}
+
+type ClearNullAccountBalanceOperation struct {
+}
+
+func (op *ClearNullAccountBalanceOperation) Type() OpType {
+	return TypeClearNullAccountBalance
+}
+func (op *ClearNullAccountBalanceOperation) Data() interface{} {
+	return op
+}
+
+type ProposalPayOperation struct {
+}
+
+func (op *ProposalPayOperation) Type() OpType {
+	return TypeProposalPay
+}
+func (op *ProposalPayOperation) Data() interface{} {
+	return op
+}
+
+type SpsFundOperation struct {
+}
+
+func (op *SpsFundOperation) Type() OpType {
+	return TypeSpsFund
+}
+func (op *SpsFundOperation) Data() interface{} {
+	return op
 }
 
 type UnknownOperation struct {
