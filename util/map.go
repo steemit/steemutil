@@ -7,6 +7,7 @@ import (
 
 type StringInt64Map map[string]int64
 
+// transform from map[string]int64 structrure to json string like [["abc": 1], ["def": 2]]
 func (m *StringInt64Map) MarshalJSON() ([]byte, error) {
 	xs := make([]interface{}, 0, len(*m))
 	for k, v := range *m {
@@ -15,6 +16,7 @@ func (m *StringInt64Map) MarshalJSON() ([]byte, error) {
 	return json.Marshal(xs)
 }
 
+// transform from json string like [["abc": 1], ["def": 2]] to map[string]int64 structrure
 func (m *StringInt64Map) UnmarshalJSON(data []byte) error {
 	var xs [][]interface{}
 	if err := json.Unmarshal(data, &xs); err != nil {
