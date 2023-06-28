@@ -1,4 +1,4 @@
-package steemutil
+package main
 
 import (
 	"encoding/json"

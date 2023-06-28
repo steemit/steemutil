@@ -43,6 +43,28 @@ func (encoder *Encoder) EncodeNumber(v interface{}) error {
 	return nil
 }
 
+func (encoder *Encoder) encodeString(v string) error {
+	if err := encoder.EncodeUVarint(uint64(len(v))); err != nil {
+		return errors.Wrapf(err, "encoder: failed to write string: %v", v)
+	}
+
+	return encoder.writeString(v)
+}
+
+func (encoder *Encoder) writeBytes(bs []byte) error {
+	if _, err := encoder.w.Write(bs); err != nil {
+		return errors.Wrapf(err, "encoder: failed to write bytes: %v", bs)
+	}
+	return nil
+}
+
+func (encoder *Encoder) writeString(s string) error {
+	if _, err := io.Copy(encoder.w, strings.NewReader(s)); err != nil {
+		return errors.Wrapf(err, "encoder: failed to write string: %v", s)
+	}
+	return nil
+}
+
 func (encoder *Encoder) Encode(v interface{}) error {
 	// if the Transaction v has MarshalTransaction method
 	if marshaller, ok := v.(TransactionMarshaller); ok {
@@ -78,26 +100,4 @@ func (encoder *Encoder) Encode(v interface{}) error {
 	default:
 		return errors.Errorf("encoder: unsupported type encountered")
 	}
-}
-
-func (encoder *Encoder) encodeString(v string) error {
-	if err := encoder.EncodeUVarint(uint64(len(v))); err != nil {
-		return errors.Wrapf(err, "encoder: failed to write string: %v", v)
-	}
-
-	return encoder.writeString(v)
-}
-
-func (encoder *Encoder) writeBytes(bs []byte) error {
-	if _, err := encoder.w.Write(bs); err != nil {
-		return errors.Wrapf(err, "encoder: failed to write bytes: %v", bs)
-	}
-	return nil
-}
-
-func (encoder *Encoder) writeString(s string) error {
-	if _, err := io.Copy(encoder.w, strings.NewReader(s)); err != nil {
-		return errors.Wrapf(err, "encoder: failed to write string: %v", s)
-	}
-	return nil
 }
