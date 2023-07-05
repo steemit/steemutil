@@ -59,8 +59,9 @@ func (num *UInt) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (num UInt) Marshalencoder(encoder *encoder.Encoder) error {
-	return encoder.EncodeNumber(uint(num))
+func (num UInt) Serialize(encoder *encoder.Encoder) error {
+	// treat uint as uint32
+	return encoder.EncodeNumber(uint32(num))
 }
 
 type UInt8 uint8
@@ -75,7 +76,7 @@ func (num *UInt8) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (num UInt8) MarshalTransaction(encoder *encoder.Encoder) error {
+func (num UInt8) Serialize(encoder *encoder.Encoder) error {
 	return encoder.EncodeNumber(uint8(num))
 }
 
@@ -91,7 +92,7 @@ func (num *UInt16) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (num UInt16) MarshalTransaction(encoder *encoder.Encoder) error {
+func (num UInt16) Serialize(encoder *encoder.Encoder) error {
 	return encoder.EncodeNumber(uint16(num))
 }
 
@@ -107,7 +108,7 @@ func (num *UInt32) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (num UInt32) MarshalTransaction(encoder *encoder.Encoder) error {
+func (num UInt32) Serialize(encoder *encoder.Encoder) error {
 	return encoder.EncodeNumber(uint32(num))
 }
 
@@ -123,7 +124,7 @@ func (num *UInt64) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (num UInt64) MarshalTransaction(encoder *encoder.Encoder) error {
+func (num UInt64) Serialize(encoder *encoder.Encoder) error {
 	return encoder.EncodeNumber(uint64(num))
 }
 
@@ -138,6 +139,10 @@ func (num *Int) UnmarshalJSON(data []byte) error {
 	*num = Int(v)
 	return nil
 }
+func (num Int) Serialize(encoder *encoder.Encoder) error {
+	// treat int as int32
+	return encoder.EncodeNumber(int32(num))
+}
 
 type Int8 int8
 
@@ -151,8 +156,8 @@ func (num *Int8) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (num Int8) MarshalTransaction(encoder *encoder.Encoder) error {
-	return encoder.EncodeNumber(int(num))
+func (num Int8) Serialize(encoder *encoder.Encoder) error {
+	return encoder.EncodeNumber(int8(num))
 }
 
 type Int16 int16
@@ -167,7 +172,7 @@ func (num *Int16) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (num Int16) MarshalTransaction(encoder *encoder.Encoder) error {
+func (num Int16) Serialize(encoder *encoder.Encoder) error {
 	return encoder.EncodeNumber(int16(num))
 }
 
@@ -183,7 +188,7 @@ func (num *Int32) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (num Int32) MarshalTransaction(encoder *encoder.Encoder) error {
+func (num Int32) Serialize(encoder *encoder.Encoder) error {
 	return encoder.EncodeNumber(int32(num))
 }
 
@@ -199,6 +204,6 @@ func (num *Int64) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (num Int64) MarshalTransaction(encoder *encoder.Encoder) error {
+func (num Int64) Serialize(encoder *encoder.Encoder) error {
 	return encoder.EncodeNumber(int64(num))
 }

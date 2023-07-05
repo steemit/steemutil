@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	expected = "[[\"abc\",1],[\"def\",2],[\"ghi\",3]]"
+	expected = `[["abc",1],["def",2],["ghi",3]]`
 	testObj  = &util.StringInt64Map{
 		"abc": 1,
 		"def": 2,
