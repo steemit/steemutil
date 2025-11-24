@@ -9,6 +9,8 @@ import (
 
 	btcec "github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil/base58"
+
+	//nolint:staticcheck // RIPEMD-160 is required by Steem protocol for public key checksum
 	"golang.org/x/crypto/ripemd160"
 
 	"github.com/pkg/errors"

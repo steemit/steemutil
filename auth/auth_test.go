@@ -30,7 +30,8 @@ func TestToWif(t *testing.T) {
 func TestWifToPublic(t *testing.T) {
 	// Use a known WIF for testing
 	testWif := "5JRaypasxMx1L97ZUX7YuC5Psb5EAbF821kkAGtBj7xCJFQcbLg"
-	
+	expectedPubkey := "STM6aGPtxMUGnTPfKLSxdwCHbximSJxzrRjeQmwRW9BRCdrFotKLs"
+
 	pubKey, err := WifToPublic(testWif)
 	if err != nil {
 		t.Fatalf("WifToPublic failed: %v", err)
@@ -44,6 +45,10 @@ func TestWifToPublic(t *testing.T) {
 	pubKeyObj := &wif.PublicKey{}
 	if err := pubKeyObj.FromStr(pubKey); err != nil {
 		t.Errorf("Generated public key is invalid: %v", err)
+	}
+
+	if pubKey != expectedPubkey {
+		t.Errorf("WifToPublic returned %s, expected %s", pubKey, expectedPubkey)
 	}
 }
 
@@ -62,7 +67,7 @@ func TestIsWif(t *testing.T) {
 
 func TestWifIsValid(t *testing.T) {
 	testWif := "5JRaypasxMx1L97ZUX7YuC5Psb5EAbF821kkAGtBj7xCJFQcbLg"
-	
+
 	pubKey, err := WifToPublic(testWif)
 	if err != nil {
 		t.Fatalf("WifToPublic failed: %v", err)
@@ -117,6 +122,19 @@ func TestGenerateKeys(t *testing.T) {
 			t.Errorf("GenerateKeys returned invalid public key for role %s: %s", role, pubKey)
 		}
 	}
+
+	expectedPubKeys := map[string]string{
+		"owner":   "STM5drwFJSU3dcvCLXKc9zuTMRT5iJg42C7nFhbBmySfnwBxA8bQd",
+		"active":  "STM8UnUGrV8vMAMtHQjNiNchjnViZSnme4puQk8HYKVojVjXppZQP",
+		"posting": "STM64BDiCDYjwe7JGETBVUzvruKvh8PLg2UfNoieatdNrpFaW1UBb",
+		"memo":    "STM5gMKVPiTvxCTshFNsrzYU8Qf6dYF21gKFbTt8kkRa6X72NLcSN",
+	}
+
+	for role, pubKey := range expectedPubKeys {
+		if pubKey != pubKeys[role] {
+			t.Errorf("GenerateKeys returned %s for role %s, expected %s", pubKeys[role], role, pubKey)
+		}
+	}
 }
 
 func TestGetPrivateKeys(t *testing.T) {
@@ -159,6 +177,24 @@ func TestGetPrivateKeys(t *testing.T) {
 			t.Errorf("GetPrivateKeys: WIF and public key don't match for role %s", role)
 		}
 	}
+	expectedKeys := map[string]string{
+		"owner":         "5JXCFwqNRNNZo49FoFu7z9VqTNAmWUTEcLyYdCgomgSRXovSNig",
+		"ownerPubkey":   "STM5drwFJSU3dcvCLXKc9zuTMRT5iJg42C7nFhbBmySfnwBxA8bQd",
+		"active":        "5J8MYnW5VwZSApbJ3TBMHbR2obhEbgchAfdEfAPQAa9CNZgbHNt",
+		"activePubkey":  "STM8UnUGrV8vMAMtHQjNiNchjnViZSnme4puQk8HYKVojVjXppZQP",
+		"posting":       "5Jr49MHfr9bpUwFNpWZ6KqtLg3vHtNAjLxBUjUefT1gVuqcdukQ",
+		"postingPubkey": "STM64BDiCDYjwe7JGETBVUzvruKvh8PLg2UfNoieatdNrpFaW1UBb",
+		"memo":          "5KPfSSnSvHsJ2XKRa6zVVdSP6fBk9jjkeN6E6ewjz8FF6zhFuk6",
+		"memoPubkey":    "STM5gMKVPiTvxCTshFNsrzYU8Qf6dYF21gKFbTt8kkRa6X72NLcSN",
+	}
+
+	for role, privKey := range expectedKeys {
+		if role == "owner" || role == "active" || role == "posting" || role == "memo" {
+			if privKey != keys[role] {
+				t.Errorf("GetPrivateKeys returned %s for role %s, expected %s", keys[role], role, privKey)
+			}
+		}
+	}
 }
 
 func TestGetPrivateKeysDefaultRoles(t *testing.T) {
@@ -177,4 +213,3 @@ func TestGetPrivateKeysDefaultRoles(t *testing.T) {
 		t.Errorf("GetPrivateKeys with nil roles returned %d keys, expected %d", len(keys), expectedCount)
 	}
 }
-

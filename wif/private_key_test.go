@@ -39,6 +39,26 @@ func TestToByte(t *testing.T) {
 	}
 }
 
+func TestFromByte(t *testing.T) {
+	for _, d := range data {
+		p := &PrivateKey{}
+		raw, err := hex.DecodeString(d.PrivateKeyHex)
+		if err != nil {
+			t.Error(err)
+		}
+		err = p.FromByte(raw)
+		if err != nil {
+			t.Error(err)
+		}
+
+		expected := d.WIF
+		got := p.ToWif()
+		if got != expected {
+			t.Errorf("expected %v, got %v", expected, got)
+		}
+	}
+}
+
 func TestToWif(t *testing.T) {
 	for _, d := range data {
 		p := &PrivateKey{}

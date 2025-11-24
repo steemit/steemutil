@@ -23,7 +23,11 @@ func (p *PrivateKey) FromWif(wif string) (err error) {
 
 func (p *PrivateKey) FromByte(raw []byte) (err error) {
 	privKey, _ := btcec.PrivKeyFromBytes(raw)
-	tmp, err := btcutil.NewWIF(privKey, &chaincfg.Params{}, true)
+	// Steem uses 0x80 as WIF version byte (same as Bitcoin mainnet) and uncompressed format
+	steemParams := &chaincfg.Params{
+		PrivateKeyID: 0x80,
+	}
+	tmp, err := btcutil.NewWIF(privKey, steemParams, false)
 	if err != nil {
 		return errors.Wrap(err, "failed to create new WIF struct")
 	}
