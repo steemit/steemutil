@@ -17,6 +17,7 @@ type Transaction struct {
 	RefBlockPrefix protocol.UInt32     `json:"ref_block_prefix"`
 	Expiration     *protocol.Time      `json:"expiration"`
 	Operations     protocol.Operations `json:"operations"`
+	Extensions     []interface{}       `json:"extensions"`
 	Signatures     []string            `json:"signatures"`
 }
 
@@ -37,8 +38,11 @@ func (tx *Transaction) MarshalTransaction(encoderObj *encoder.Encoder) error {
 		enc.Encode(op)
 	}
 
-	// Extensions are not supported yet.
-	enc.EncodeUVarint(0)
+	// Encode extensions (usually empty, but must be present in serialization)
+	enc.EncodeUVarint(uint64(len(tx.Extensions)))
+	for _, ext := range tx.Extensions {
+		enc.Encode(ext)
+	}
 
 	return enc.Err()
 }
