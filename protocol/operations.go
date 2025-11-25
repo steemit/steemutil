@@ -12,7 +12,9 @@ import (
 //             (second_block) )
 
 type ReportOverProductionOperation struct {
-	Reporter string `json:"reporter"`
+	Reporter    string `json:"reporter"`
+	FirstBlock  string `json:"first_block"`
+	SecondBlock string `json:"second_block"`
 }
 
 func (op *ReportOverProductionOperation) Type() OpType {
@@ -640,14 +642,14 @@ func (op *ChangeRecoveryAccountOperation) Data() interface{} {
 type EscrowTransferOperation struct {
 	From                 string `json:"from"`
 	To                   string `json:"to"`
-	Agent                string `json:"agent"`
-	EscrowID             uint32 `json:"escrow_id"`
 	SBDAmount            string `json:"sbd_amount"`
 	SteemAmount          string `json:"steem_amount"`
+	EscrowID             uint32 `json:"escrow_id"`
+	Agent                string `json:"agent"`
 	Fee                  string `json:"fee"`
+	JsonMeta             string `json:"json_meta"`
 	RatificationDeadline *Time  `json:"ratification_deadline"`
 	EscrowExpiration     *Time  `json:"escrow_expiration"`
-	JsonMeta             string `json:"json_meta"`
 }
 
 func (op *EscrowTransferOperation) Type() OpType {
@@ -1082,8 +1084,8 @@ func (op *RemoveProposalOperation) Data() interface{} {
 
 type ClaimRewardBalance2Operation struct {
 	Account      string        `json:"account"`
-	RewardTokens []interface{} `json:"reward_tokens"`
 	Extensions   []interface{} `json:"extensions"`
+	RewardTokens []interface{} `json:"reward_tokens"`
 }
 
 func (op *ClaimRewardBalance2Operation) Type() OpType {

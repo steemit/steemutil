@@ -20,7 +20,8 @@ type SignedTransaction struct {
 
 func NewSignedTransaction(tx *Transaction) *SignedTransaction {
 	if tx.Expiration == nil {
-		expiration := time.Now().Add(600 * time.Second)
+		// Use UTC time to match steemjs behavior
+		expiration := time.Now().UTC().Add(600 * time.Second)
 		tx.Expiration = &protocol.Time{Time: &expiration}
 	}
 
