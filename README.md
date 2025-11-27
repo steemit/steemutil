@@ -1,5 +1,7 @@
 # steemutil
 
+> This is underconstruction. The methods will be change in the future !!!!
+
 Package steemutil provides Steem blockchain-specific convenience functions and types for Go applications.
 
 ## Overview
@@ -308,7 +310,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Related Projects
 
-- **[steemgosdk](../steemgosdk/)** - High-level Steem Go SDK built on steemutil
+- **[steemgosdk](https://github.com/steemit/steemgosdk/)** - High-level Steem Go SDK built on steemutil
 - **[steem-js](https://github.com/steemit/steem-js)** - JavaScript Steem library (compatible with our SignedCall)
 - **[steem](https://github.com/steemit/steem)** - Official Steem blockchain implementation
 
@@ -316,8 +318,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **Issues**: [GitHub Issues](https://github.com/steemit/steemutil/issues)
 - **Documentation**: [API Documentation](https://pkg.go.dev/github.com/steemit/steemutil)
-- **Community**: [Steem Developer Community](https://developers.steem.io)
 
 ---
 
-**Note**: This library provides low-level utilities. For high-level application development, consider using [steemgosdk](../steemgosdk/) which provides a more convenient API built on top of steemutil.
+**Note**: This library provides low-level utilities. For high-level application development, consider using [steemgosdk](https://github.com/steemit/steemgosdk/) which provides a more convenient API built on top of steemutil.
