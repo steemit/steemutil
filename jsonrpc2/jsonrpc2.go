@@ -3,7 +3,9 @@ package jsonrpc2
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/pkg/errors"
@@ -31,6 +33,12 @@ func (j *JsonRpc) BuildSendData(method string, params []any) (err error) {
 		return
 	}
 	j.SendData = tmp
+	
+	// Debug: Print JSON request if DEBUG is set
+	if os.Getenv("DEBUG") != "" && method == "condenser_api.broadcast_transaction_synchronous" {
+		fmt.Printf("=== JSON-RPC Request ===\n%s\n", string(tmp))
+	}
+	
 	return
 }
 

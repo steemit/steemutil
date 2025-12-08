@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"io"
 	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/steemit/steemutil/encoder"
 )
 
 const (
@@ -74,4 +76,60 @@ func (op *CustomJSONOperation) UnmarshalData() (interface{}, error) {
 	}
 
 	return opData, nil
+}
+
+// MarshalTransaction implements custom binary serialization for custom_json operation.
+// This ensures required_auths and required_posting_auths are sorted before serialization,
+// matching steem-js behavior for flat_set serialization.
+func (op *CustomJSONOperation) MarshalTransaction(encoderObj *encoder.Encoder) error {
+	if op == nil {
+		return errors.New("cannot marshal nil CustomJSONOperation")
+	}
+
+	// Encode operation type code first (required for all operations)
+	if err := encoderObj.EncodeUVarint(uint64(op.Type().Code())); err != nil {
+		return errors.Wrap(err, "failed to encode operation type code")
+	}
+
+	// Sort required_auths (flat_set serialization requires sorted order)
+	requiredAuths := make([]string, len(op.RequiredAuths))
+	copy(requiredAuths, op.RequiredAuths)
+	sort.Strings(requiredAuths)
+
+	// Encode required_auths: varint32 length + each account name (string)
+	if err := encoderObj.EncodeUVarint(uint64(len(requiredAuths))); err != nil {
+		return errors.Wrap(err, "failed to encode required_auths length")
+	}
+	for _, account := range requiredAuths {
+		if err := encoderObj.Encode(account); err != nil {
+			return errors.Wrapf(err, "failed to encode required_auths account: %s", account)
+		}
+	}
+
+	// Sort required_posting_auths (flat_set serialization requires sorted order)
+	requiredPostingAuths := make([]string, len(op.RequiredPostingAuths))
+	copy(requiredPostingAuths, op.RequiredPostingAuths)
+	sort.Strings(requiredPostingAuths)
+
+	// Encode required_posting_auths: varint32 length + each account name (string)
+	if err := encoderObj.EncodeUVarint(uint64(len(requiredPostingAuths))); err != nil {
+		return errors.Wrap(err, "failed to encode required_posting_auths length")
+	}
+	for _, account := range requiredPostingAuths {
+		if err := encoderObj.Encode(account); err != nil {
+			return errors.Wrapf(err, "failed to encode required_posting_auths account: %s", account)
+		}
+	}
+
+	// Encode id (string)
+	if err := encoderObj.Encode(op.ID); err != nil {
+		return errors.Wrap(err, "failed to encode id")
+	}
+
+	// Encode json (string)
+	if err := encoderObj.Encode(op.JSON); err != nil {
+		return errors.Wrap(err, "failed to encode json")
+	}
+
+	return nil
 }
