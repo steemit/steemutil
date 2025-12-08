@@ -36,3 +36,8 @@ test-race:
 test-short:
 	@$(call print, "Running short unit tests...")
 	@go test ./... -short
+
+.PHONY: list-versions
+list-versions:
+	@$(call print, "Listing all available versions of github.com/steemit/steemutil...")
+	@go list -m -versions github.com/steemit/steemutil
