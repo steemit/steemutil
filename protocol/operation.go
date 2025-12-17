@@ -77,7 +77,7 @@ type Operation interface {
 	// the operation data object associated with the given operation type,
 	// e.g. Type is TypeVote -> Data contains *VoteOperation.
 	// Otherwise this field contains raw JSON (type *json.RawMessage).
-	Data() interface{}
+	Data() any
 }
 
 type Operations []Operation
@@ -102,7 +102,7 @@ func (ops Operations) MarshalJSON() ([]byte, error) {
 	for _, op := range ops {
 		tuples = append(tuples, &operationTuple{
 			Type: op.Type(),
-			Data: op.Data().(Operation),
+			Data: op,
 		})
 	}
 	return json.Marshal(tuples)
@@ -114,7 +114,7 @@ type operationTuple struct {
 }
 
 func (op *operationTuple) MarshalJSON() ([]byte, error) {
-	return json.Marshal([]interface{}{
+	return json.Marshal([]any{
 		op.Type,
 		op.Data,
 	})

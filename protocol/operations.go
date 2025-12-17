@@ -21,7 +21,7 @@ func (op *ReportOverProductionOperation) Type() OpType {
 	return TypeReportOverProduction
 }
 
-func (op *ReportOverProductionOperation) Data() interface{} {
+func (op *ReportOverProductionOperation) Data() any {
 	return op
 }
 
@@ -40,7 +40,7 @@ func (op *ConvertOperation) Type() OpType {
 	return TypeConvert
 }
 
-func (op *ConvertOperation) Data() interface{} {
+func (op *ConvertOperation) Data() any {
 	return op
 }
 
@@ -60,7 +60,7 @@ func (op *FeedPublishOperation) Type() OpType {
 	return TypeFeedPublish
 }
 
-func (op *FeedPublishOperation) Data() interface{} {
+func (op *FeedPublishOperation) Data() any {
 	return op
 }
 
@@ -107,7 +107,7 @@ func (op *POWOperation) Type() OpType {
 	return TypePOW
 }
 
-func (op *POWOperation) Data() interface{} {
+func (op *POWOperation) Data() any {
 	return op
 }
 
@@ -136,7 +136,7 @@ func (op *AccountCreateOperation) Type() OpType {
 	return TypeAccountCreate
 }
 
-func (op *AccountCreateOperation) Data() interface{} {
+func (op *AccountCreateOperation) Data() any {
 	return op
 }
 
@@ -161,7 +161,7 @@ func (op *AccountUpdateOperation) Type() OpType {
 	return TypeAccountUpdate
 }
 
-func (op *AccountUpdateOperation) Data() interface{} {
+func (op *AccountUpdateOperation) Data() any {
 	return op
 }
 
@@ -182,7 +182,7 @@ func (op *TransferOperation) Type() OpType {
 	return TypeTransfer
 }
 
-func (op *TransferOperation) Data() interface{} {
+func (op *TransferOperation) Data() any {
 	return op
 }
 
@@ -201,7 +201,7 @@ func (op *TransferToVestingOperation) Type() OpType {
 	return TypeTransferToVesting
 }
 
-func (op *TransferToVestingOperation) Data() interface{} {
+func (op *TransferToVestingOperation) Data() any {
 	return op
 }
 
@@ -218,7 +218,7 @@ func (op *WithdrawVestingOperation) Type() OpType {
 	return TypeWithdrawVesting
 }
 
-func (op *WithdrawVestingOperation) Data() interface{} {
+func (op *WithdrawVestingOperation) Data() any {
 	return op
 }
 
@@ -249,7 +249,7 @@ func (op *AccountWitnessVoteOperation) Type() OpType {
 	return TypeAccountWitnessVote
 }
 
-func (op *AccountWitnessVoteOperation) Data() interface{} {
+func (op *AccountWitnessVoteOperation) Data() any {
 	return op
 }
 
@@ -266,7 +266,7 @@ func (op *AccountWitnessProxyOperation) Type() OpType {
 	return TypeAccountWitnessProxy
 }
 
-func (op *AccountWitnessProxyOperation) Data() interface{} {
+func (op *AccountWitnessProxyOperation) Data() any {
 	return op
 }
 
@@ -297,7 +297,7 @@ func (op *CommentOperation) Type() OpType {
 	return TypeComment
 }
 
-func (op *CommentOperation) Data() interface{} {
+func (op *CommentOperation) Data() any {
 	return op
 }
 
@@ -335,7 +335,7 @@ func (op *VoteOperation) Type() OpType {
 	return TypeVote
 }
 
-func (op *VoteOperation) Data() interface{} {
+func (op *VoteOperation) Data() any {
 	return op
 }
 
@@ -375,7 +375,7 @@ func (op *LimitOrderCreateOperation) Type() OpType {
 	return TypeLimitOrderCreate
 }
 
-func (op *LimitOrderCreateOperation) Data() interface{} {
+func (op *LimitOrderCreateOperation) Data() any {
 	return op
 }
 
@@ -392,7 +392,7 @@ func (op *LimitOrderCancelOperation) Type() OpType {
 	return TypeLimitOrderCancel
 }
 
-func (op *LimitOrderCancelOperation) Data() interface{} {
+func (op *LimitOrderCancelOperation) Data() any {
 	return op
 }
 
@@ -409,7 +409,7 @@ func (op *DeleteCommentOperation) Type() OpType {
 	return TypeDeleteComment
 }
 
-func (op *DeleteCommentOperation) Data() interface{} {
+func (op *DeleteCommentOperation) Data() any {
 	return op
 }
 
@@ -423,20 +423,20 @@ func (op *DeleteCommentOperation) Data() interface{} {
 //             (extensions) )
 
 type CommentOptionsOperation struct {
-	Author               string        `json:"author"`
-	Permlink             string        `json:"permlink"`
-	MaxAcceptedPayout    string        `json:"max_accepted_payout"`
-	PercentSteemDollars  uint16        `json:"percent_steem_dollars"`
-	AllowVotes           bool          `json:"allow_votes"`
-	AllowCurationRewards bool          `json:"allow_curation_rewards"`
-	Extensions           []interface{} `json:"extensions"`
+	Author               string `json:"author"`
+	Permlink             string `json:"permlink"`
+	MaxAcceptedPayout    string `json:"max_accepted_payout"`
+	PercentSteemDollars  uint16 `json:"percent_steem_dollars"`
+	AllowVotes           bool   `json:"allow_votes"`
+	AllowCurationRewards bool   `json:"allow_curation_rewards"`
+	Extensions           []any  `json:"extensions"`
 }
 
 func (op *CommentOptionsOperation) Type() OpType {
 	return TypeCommentOptions
 }
 
-func (op *CommentOptionsOperation) Data() interface{} {
+func (op *CommentOptionsOperation) Data() any {
 	return op
 }
 
@@ -465,7 +465,7 @@ func (op *WitnessUpdateOperation) Type() OpType {
 	return TypeWitnessUpdate
 }
 
-func (op *WitnessUpdateOperation) Data() interface{} {
+func (op *WitnessUpdateOperation) Data() any {
 	return op
 }
 
@@ -486,7 +486,7 @@ func (op *SetWithdrawVestingRouteOperation) Type() OpType {
 	return TypeSetWithdrawVestingRoute
 }
 
-func (op *SetWithdrawVestingRouteOperation) Data() interface{} {
+func (op *SetWithdrawVestingRouteOperation) Data() any {
 	return op
 }
 
@@ -514,7 +514,7 @@ func (op *LimitOrderCreate2Operation) Type() OpType {
 	return TypeLimitOrderCreate2
 }
 
-func (op *LimitOrderCreate2Operation) Data() interface{} {
+func (op *LimitOrderCreate2Operation) Data() any {
 	return op
 }
 
@@ -524,16 +524,16 @@ func (op *LimitOrderCreate2Operation) Data() interface{} {
 //             (extensions) )
 
 type ClaimAccountOperation struct {
-	Creator    string        `json:"creator"`
-	Fee        string        `json:"fee"`
-	Extensions []interface{} `json:"extensions"`
+	Creator    string `json:"creator"`
+	Fee        string `json:"fee"`
+	Extensions []any  `json:"extensions"`
 }
 
 func (op *ClaimAccountOperation) Type() OpType {
 	return TypeClaimAccount
 }
 
-func (op *ClaimAccountOperation) Data() interface{} {
+func (op *ClaimAccountOperation) Data() any {
 	return op
 }
 
@@ -548,21 +548,21 @@ func (op *ClaimAccountOperation) Data() interface{} {
 //             (extensions) )
 
 type CreateClaimedAccountOperation struct {
-	Creator        string        `json:"creator"`
-	NewAccountName string        `json:"new_account_name"`
-	Owner          *Authority    `json:"owner"`
-	Active         *Authority    `json:"active"`
-	Posting        *Authority    `json:"posting"`
-	MemoKey        string        `json:"memo_key"`
-	JsonMetadata   string        `json:"json_metadata"`
-	Extensions     []interface{} `json:"extensions"`
+	Creator        string     `json:"creator"`
+	NewAccountName string     `json:"new_account_name"`
+	Owner          *Authority `json:"owner"`
+	Active         *Authority `json:"active"`
+	Posting        *Authority `json:"posting"`
+	MemoKey        string     `json:"memo_key"`
+	JsonMetadata   string     `json:"json_metadata"`
+	Extensions     []any      `json:"extensions"`
 }
 
 func (op *CreateClaimedAccountOperation) Type() OpType {
 	return TypeCreateClaimedAccount
 }
 
-func (op *CreateClaimedAccountOperation) Data() interface{} {
+func (op *CreateClaimedAccountOperation) Data() any {
 	return op
 }
 
@@ -573,17 +573,17 @@ func (op *CreateClaimedAccountOperation) Data() interface{} {
 //             (extensions) )
 
 type RequestAccountRecoveryOperation struct {
-	RecoveryAccount   string        `json:"recovery_account"`
-	AccountToRecover  string        `json:"account_to_recover"`
-	NewOwnerAuthority *Authority    `json:"new_owner_authority"`
-	Extensions        []interface{} `json:"extensions"`
+	RecoveryAccount   string     `json:"recovery_account"`
+	AccountToRecover  string     `json:"account_to_recover"`
+	NewOwnerAuthority *Authority `json:"new_owner_authority"`
+	Extensions        []any      `json:"extensions"`
 }
 
 func (op *RequestAccountRecoveryOperation) Type() OpType {
 	return TypeRequestAccountRecovery
 }
 
-func (op *RequestAccountRecoveryOperation) Data() interface{} {
+func (op *RequestAccountRecoveryOperation) Data() any {
 	return op
 }
 
@@ -594,17 +594,17 @@ func (op *RequestAccountRecoveryOperation) Data() interface{} {
 //             (extensions) )
 
 type RecoverAccountOperation struct {
-	AccountToRecover     string        `json:"account_to_recover"`
-	NewOwnerAuthority    *Authority    `json:"new_owner_authority"`
-	RecentOwnerAuthority *Authority    `json:"recent_owner_authority"`
-	Extensions           []interface{} `json:"extensions"`
+	AccountToRecover     string     `json:"account_to_recover"`
+	NewOwnerAuthority    *Authority `json:"new_owner_authority"`
+	RecentOwnerAuthority *Authority `json:"recent_owner_authority"`
+	Extensions           []any      `json:"extensions"`
 }
 
 func (op *RecoverAccountOperation) Type() OpType {
 	return TypeRecoverAccount
 }
 
-func (op *RecoverAccountOperation) Data() interface{} {
+func (op *RecoverAccountOperation) Data() any {
 	return op
 }
 
@@ -614,16 +614,16 @@ func (op *RecoverAccountOperation) Data() interface{} {
 //             (extensions) )
 
 type ChangeRecoveryAccountOperation struct {
-	AccountToRecover   string        `json:"account_to_recover"`
-	NewRecoveryAccount string        `json:"new_recovery_account"`
-	Extensions         []interface{} `json:"extensions"`
+	AccountToRecover   string `json:"account_to_recover"`
+	NewRecoveryAccount string `json:"new_recovery_account"`
+	Extensions         []any  `json:"extensions"`
 }
 
 func (op *ChangeRecoveryAccountOperation) Type() OpType {
 	return TypeChangeRecoveryAccount
 }
 
-func (op *ChangeRecoveryAccountOperation) Data() interface{} {
+func (op *ChangeRecoveryAccountOperation) Data() any {
 	return op
 }
 
@@ -656,7 +656,7 @@ func (op *EscrowTransferOperation) Type() OpType {
 	return TypeEscrowTransfer
 }
 
-func (op *EscrowTransferOperation) Data() interface{} {
+func (op *EscrowTransferOperation) Data() any {
 	return op
 }
 
@@ -679,7 +679,7 @@ func (op *EscrowDisputeOperation) Type() OpType {
 	return TypeEscrowDispute
 }
 
-func (op *EscrowDisputeOperation) Data() interface{} {
+func (op *EscrowDisputeOperation) Data() any {
 	return op
 }
 
@@ -708,7 +708,7 @@ func (op *EscrowReleaseOperation) Type() OpType {
 	return TypeEscrowRelease
 }
 
-func (op *EscrowReleaseOperation) Data() interface{} {
+func (op *EscrowReleaseOperation) Data() any {
 	return op
 }
 
@@ -733,7 +733,7 @@ func (op *EscrowApproveOperation) Type() OpType {
 	return TypeEscrowApprove
 }
 
-func (op *EscrowApproveOperation) Data() interface{} {
+func (op *EscrowApproveOperation) Data() any {
 	return op
 }
 
@@ -742,15 +742,15 @@ func (op *EscrowApproveOperation) Data() interface{} {
 //             (pow_summary) )
 
 type POW2Operation struct {
-	Input      string      `json:"input"`
-	POWSummary interface{} `json:"pow_summary"`
+	Input      string `json:"input"`
+	POWSummary any    `json:"pow_summary"`
 }
 
 func (op *POW2Operation) Type() OpType {
 	return TypePOW2
 }
 
-func (op *POW2Operation) Data() interface{} {
+func (op *POW2Operation) Data() any {
 	return op
 }
 
@@ -771,7 +771,7 @@ func (op *TransferToSavingsOperation) Type() OpType {
 	return TypeTransferToSavings
 }
 
-func (op *TransferToSavingsOperation) Data() interface{} {
+func (op *TransferToSavingsOperation) Data() any {
 	return op
 }
 
@@ -794,7 +794,7 @@ func (op *TransferFromSavingsOperation) Type() OpType {
 	return TypeTransferFromSavings
 }
 
-func (op *TransferFromSavingsOperation) Data() interface{} {
+func (op *TransferFromSavingsOperation) Data() any {
 	return op
 }
 
@@ -811,7 +811,7 @@ func (op *CancelTransferFromSavingsOperation) Type() OpType {
 	return TypeCancelTransferFromSavings
 }
 
-func (op *CancelTransferFromSavingsOperation) Data() interface{} {
+func (op *CancelTransferFromSavingsOperation) Data() any {
 	return op
 }
 
@@ -828,7 +828,7 @@ func (op *CustomBinaryOperation) Type() OpType {
 	return TypeCustomBinary
 }
 
-func (op *CustomBinaryOperation) Data() interface{} {
+func (op *CustomBinaryOperation) Data() any {
 	return op
 }
 
@@ -845,7 +845,7 @@ func (op *DeclineVotingRightsOperation) Type() OpType {
 	return TypeDeclineVotingRights
 }
 
-func (op *DeclineVotingRightsOperation) Data() interface{} {
+func (op *DeclineVotingRightsOperation) Data() any {
 	return op
 }
 
@@ -864,7 +864,7 @@ func (op *ResetAccountOperation) Type() OpType {
 	return TypeResetAccount
 }
 
-func (op *ResetAccountOperation) Data() interface{} {
+func (op *ResetAccountOperation) Data() any {
 	return op
 }
 
@@ -883,7 +883,7 @@ func (op *SetResetAccountOperation) Type() OpType {
 	return TypeSetResetAccount
 }
 
-func (op *SetResetAccountOperation) Data() interface{} {
+func (op *SetResetAccountOperation) Data() any {
 	return op
 }
 
@@ -904,7 +904,7 @@ func (op *ClaimRewardBalanceOperation) Type() OpType {
 	return TypeClaimRewardBalance
 }
 
-func (op *ClaimRewardBalanceOperation) Data() interface{} {
+func (op *ClaimRewardBalanceOperation) Data() any {
 	return op
 }
 
@@ -923,7 +923,7 @@ func (op *DelegateVestingSharesOperation) Type() OpType {
 	return TypeDelegateVestingShares
 }
 
-func (op *DelegateVestingSharesOperation) Data() interface{} {
+func (op *DelegateVestingSharesOperation) Data() any {
 	return op
 }
 
@@ -940,23 +940,23 @@ func (op *DelegateVestingSharesOperation) Data() interface{} {
 //             (extensions) )
 
 type AccountCreateWithDelegationOperation struct {
-	Fee            string        `json:"fee"`
-	Delegation     string        `json:"delegation"`
-	Creator        string        `json:"creator"`
-	NewAccountName string        `json:"new_account_name"`
-	Owner          *Authority    `json:"owner"`
-	Active         *Authority    `json:"active"`
-	Posting        *Authority    `json:"posting"`
-	MemoKey        string        `json:"memo_key"`
-	JsonMetadata   string        `json:"json_metadata"`
-	Extensions     []interface{} `json:"extensions"`
+	Fee            string     `json:"fee"`
+	Delegation     string     `json:"delegation"`
+	Creator        string     `json:"creator"`
+	NewAccountName string     `json:"new_account_name"`
+	Owner          *Authority `json:"owner"`
+	Active         *Authority `json:"active"`
+	Posting        *Authority `json:"posting"`
+	MemoKey        string     `json:"memo_key"`
+	JsonMetadata   string     `json:"json_metadata"`
+	Extensions     []any      `json:"extensions"`
 }
 
 func (op *AccountCreateWithDelegationOperation) Type() OpType {
 	return TypeAccountCreateWithDelegation
 }
 
-func (op *AccountCreateWithDelegationOperation) Data() interface{} {
+func (op *AccountCreateWithDelegationOperation) Data() any {
 	return op
 }
 
@@ -966,16 +966,16 @@ func (op *AccountCreateWithDelegationOperation) Data() interface{} {
 //             (extensions) )
 
 type WitnessSetPropertiesOperation struct {
-	Owner      string        `json:"owner"`
-	Props      string        `json:"props"`
-	Extensions []interface{} `json:"extensions"`
+	Owner      string `json:"owner"`
+	Props      string `json:"props"`
+	Extensions []any  `json:"extensions"`
 }
 
 func (op *WitnessSetPropertiesOperation) Type() OpType {
 	return TypeWitnessSetProperties
 }
 
-func (op *WitnessSetPropertiesOperation) Data() interface{} {
+func (op *WitnessSetPropertiesOperation) Data() any {
 	return op
 }
 
@@ -990,21 +990,21 @@ func (op *WitnessSetPropertiesOperation) Data() interface{} {
 //             (extensions) )
 
 type AccountUpdate2Operation struct {
-	Account             string        `json:"account"`
-	Owner               *Authority    `json:"owner"`
-	Active              *Authority    `json:"active"`
-	Posting             *Authority    `json:"posting"`
-	MemoKey             string        `json:"memo_key"`
-	JsonMetadata        string        `json:"json_metadata"`
-	PostingJsonMetadata string        `json:"posting_json_metadata"`
-	Extensions          []interface{} `json:"extensions"`
+	Account             string     `json:"account"`
+	Owner               *Authority `json:"owner"`
+	Active              *Authority `json:"active"`
+	Posting             *Authority `json:"posting"`
+	MemoKey             string     `json:"memo_key"`
+	JsonMetadata        string     `json:"json_metadata"`
+	PostingJsonMetadata string     `json:"posting_json_metadata"`
+	Extensions          []any      `json:"extensions"`
 }
 
 func (op *AccountUpdate2Operation) Type() OpType {
 	return TypeAccountUpdate2
 }
 
-func (op *AccountUpdate2Operation) Data() interface{} {
+func (op *AccountUpdate2Operation) Data() any {
 	return op
 }
 
@@ -1019,21 +1019,21 @@ func (op *AccountUpdate2Operation) Data() interface{} {
 //             (extensions) )
 
 type CreateProposalOperation struct {
-	Creator    string        `json:"creator"`
-	Receiver   string        `json:"receiver"`
-	StartDate  *Time         `json:"start_date"`
-	EndDate    *Time         `json:"end_date"`
-	DailyPay   string        `json:"daily_pay"`
-	Subject    string        `json:"subject"`
-	Permlink   string        `json:"permlink"`
-	Extensions []interface{} `json:"extensions"`
+	Creator    string `json:"creator"`
+	Receiver   string `json:"receiver"`
+	StartDate  *Time  `json:"start_date"`
+	EndDate    *Time  `json:"end_date"`
+	DailyPay   string `json:"daily_pay"`
+	Subject    string `json:"subject"`
+	Permlink   string `json:"permlink"`
+	Extensions []any  `json:"extensions"`
 }
 
 func (op *CreateProposalOperation) Type() OpType {
 	return TypeCreateProposal
 }
 
-func (op *CreateProposalOperation) Data() interface{} {
+func (op *CreateProposalOperation) Data() any {
 	return op
 }
 
@@ -1044,17 +1044,17 @@ func (op *CreateProposalOperation) Data() interface{} {
 //             (extensions) )
 
 type UpdateProposalVotesOperation struct {
-	Voter       string        `json:"voter"`
-	ProposalIDs []uint64      `json:"proposal_ids"`
-	Approve     bool          `json:"approve"`
-	Extensions  []interface{} `json:"extensions"`
+	Voter       string   `json:"voter"`
+	ProposalIDs []uint64 `json:"proposal_ids"`
+	Approve     bool     `json:"approve"`
+	Extensions  []any    `json:"extensions"`
 }
 
 func (op *UpdateProposalVotesOperation) Type() OpType {
 	return TypeUpdateProposalVotes
 }
 
-func (op *UpdateProposalVotesOperation) Data() interface{} {
+func (op *UpdateProposalVotesOperation) Data() any {
 	return op
 }
 
@@ -1064,16 +1064,16 @@ func (op *UpdateProposalVotesOperation) Data() interface{} {
 //             (extensions) )
 
 type RemoveProposalOperation struct {
-	ProposalOwner string        `json:"proposal_owner"`
-	ProposalIDs   []uint64      `json:"proposal_ids"`
-	Extensions    []interface{} `json:"extensions"`
+	ProposalOwner string   `json:"proposal_owner"`
+	ProposalIDs   []uint64 `json:"proposal_ids"`
+	Extensions    []any    `json:"extensions"`
 }
 
 func (op *RemoveProposalOperation) Type() OpType {
 	return TypeRemoveProposal
 }
 
-func (op *RemoveProposalOperation) Data() interface{} {
+func (op *RemoveProposalOperation) Data() any {
 	return op
 }
 
@@ -1083,16 +1083,16 @@ func (op *RemoveProposalOperation) Data() interface{} {
 //             (extensions) )
 
 type ClaimRewardBalance2Operation struct {
-	Account      string        `json:"account"`
-	Extensions   []interface{} `json:"extensions"`
-	RewardTokens []interface{} `json:"reward_tokens"`
+	Account      string `json:"account"`
+	Extensions   []any  `json:"extensions"`
+	RewardTokens []any  `json:"reward_tokens"`
 }
 
 func (op *ClaimRewardBalance2Operation) Type() OpType {
 	return TypeClaimRewardBalance2
 }
 
-func (op *ClaimRewardBalance2Operation) Data() interface{} {
+func (op *ClaimRewardBalance2Operation) Data() any {
 	return op
 }
 
@@ -1104,18 +1104,18 @@ func (op *ClaimRewardBalance2Operation) Data() interface{} {
 //             (extensions) )
 
 type Vote2Operation struct {
-	Voter      string        `json:"voter"`
-	Author     string        `json:"author"`
-	Permlink   string        `json:"permlink"`
-	RShares    string        `json:"rshares"`
-	Extensions []interface{} `json:"extensions"`
+	Voter      string `json:"voter"`
+	Author     string `json:"author"`
+	Permlink   string `json:"permlink"`
+	RShares    string `json:"rshares"`
+	Extensions []any  `json:"extensions"`
 }
 
 func (op *Vote2Operation) Type() OpType {
 	return TypeVote2
 }
 
-func (op *Vote2Operation) Data() interface{} {
+func (op *Vote2Operation) Data() any {
 	return op
 }
 
@@ -1136,7 +1136,7 @@ func (op *FillConvertRequestOperation) Type() OpType {
 	return TypeFillConvertRequest
 }
 
-func (op *FillConvertRequestOperation) Data() interface{} {
+func (op *FillConvertRequestOperation) Data() any {
 	return op
 }
 
@@ -1155,7 +1155,7 @@ func (op *CommentRewardOperation) Type() OpType {
 	return TypeCommentReward
 }
 
-func (op *CommentRewardOperation) Data() interface{} {
+func (op *CommentRewardOperation) Data() any {
 	return op
 }
 
@@ -1172,7 +1172,7 @@ func (op *LiquidityRewardOperation) Type() OpType {
 	return TypeLiquidityReward
 }
 
-func (op *LiquidityRewardOperation) Data() interface{} {
+func (op *LiquidityRewardOperation) Data() any {
 	return op
 }
 
@@ -1189,7 +1189,7 @@ func (op *InterestOperation) Type() OpType {
 	return TypeInterest
 }
 
-func (op *InterestOperation) Data() interface{} {
+func (op *InterestOperation) Data() any {
 	return op
 }
 
@@ -1210,7 +1210,7 @@ func (op *FillVestingWithdrawOperation) Type() OpType {
 	return TypeFillVestingWithdraw
 }
 
-func (op *FillVestingWithdrawOperation) Data() interface{} {
+func (op *FillVestingWithdrawOperation) Data() any {
 	return op
 }
 
@@ -1235,7 +1235,7 @@ func (op *FillOrderOperation) Type() OpType {
 	return TypeFillOrder
 }
 
-func (op *FillOrderOperation) Data() interface{} {
+func (op *FillOrderOperation) Data() any {
 	return op
 }
 
@@ -1258,7 +1258,7 @@ func (op *FillTransferFromSavingsOperation) Type() OpType {
 	return TypeFillTransferFromSavings
 }
 
-func (op *FillTransferFromSavingsOperation) Data() interface{} {
+func (op *FillTransferFromSavingsOperation) Data() any {
 	return op
 }
 
@@ -1271,6 +1271,6 @@ func (op *UnknownOperation) Type() OpType {
 	return op.kind
 }
 
-func (op *UnknownOperation) Data() interface{} {
+func (op *UnknownOperation) Data() any {
 	return op.data
 }
