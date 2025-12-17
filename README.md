@@ -240,6 +240,142 @@ The library supports all Steem protocol operations:
 - **Custom**: `custom_json`, `custom_binary`
 - **And many more...**
 
+### Working with Operation Data
+
+The `Operation` interface provides a `Data() any` method that returns the operation data. Understanding how to use this method is important for type-safe operation handling.
+
+#### Return Types
+
+The `Data()` method returns different types depending on the operation:
+
+- **Known Operations**: Returns the operation struct itself (e.g., `*VoteOperation`, `*TransferOperation`)
+- **Unknown Operations**: Returns `*json.RawMessage` for operations not recognized by the package
+
+#### Best Practices
+
+**1. Type Assertion Based on Operation Type**
+
+Always check the operation type before performing type assertions:
+
+```go
+import (
+    "encoding/json"
+    "github.com/steemit/steemutil/protocol"
+)
+
+func processOperation(op protocol.Operation) {
+    switch op.Type() {
+    case protocol.TypeVote:
+        // Type assertion is safe after checking Type()
+        voteOp := op.Data().(*protocol.VoteOperation)
+        fmt.Printf("Voter: %s, Author: %s\n", voteOp.Voter, voteOp.Author)
+        
+    case protocol.TypeTransfer:
+        transferOp := op.Data().(*protocol.TransferOperation)
+        fmt.Printf("From: %s, To: %s, Amount: %s\n", 
+            transferOp.From, transferOp.To, transferOp.Amount)
+        
+    case protocol.TypeComment:
+        commentOp := op.Data().(*protocol.CommentOperation)
+        fmt.Printf("Author: %s, Title: %s\n", commentOp.Author, commentOp.Title)
+        
+    default:
+        // Handle unknown operations
+        if rawJSON, ok := op.Data().(*json.RawMessage); ok {
+            fmt.Printf("Unknown operation type: %s\n", op.Type())
+            fmt.Printf("Raw JSON: %s\n", string(*rawJSON))
+        }
+    }
+}
+```
+
+**2. Safe Type Assertion with Error Handling**
+
+Use type assertions with the two-value form for safer code:
+
+```go
+func safeProcessVote(op protocol.Operation) error {
+    if op.Type() != protocol.TypeVote {
+        return fmt.Errorf("expected vote operation, got %s", op.Type())
+    }
+    
+    voteOp, ok := op.Data().(*protocol.VoteOperation)
+    if !ok {
+        return fmt.Errorf("failed to assert vote operation data")
+    }
+    
+    // Use voteOp safely
+    fmt.Printf("Processing vote: %s -> %s/%s\n", 
+        voteOp.Voter, voteOp.Author, voteOp.Permlink)
+    return nil
+}
+```
+
+**3. Handling Unknown Operations**
+
+For operations not recognized by the package, `Data()` returns `*json.RawMessage`:
+
+```go
+func handleUnknownOperation(op protocol.Operation) {
+    if rawJSON, ok := op.Data().(*json.RawMessage); ok {
+        // This is an unknown operation type
+        var data map[string]any
+        if err := json.Unmarshal(*rawJSON, &data); err == nil {
+            fmt.Printf("Unknown operation data: %+v\n", data)
+        }
+    } else {
+        // This is a known operation type
+        fmt.Printf("Known operation: %s\n", op.Type())
+    }
+}
+```
+
+**4. Direct Operation Access**
+
+For known operations, you can directly use the operation struct without calling `Data()`:
+
+```go
+// Instead of:
+data := op.Data().(*protocol.VoteOperation)
+
+// You can directly cast the operation:
+if voteOp, ok := op.(*protocol.VoteOperation); ok {
+    // Use voteOp directly
+    fmt.Printf("Voter: %s\n", voteOp.Voter)
+}
+```
+
+**5. Iterating Over Operations**
+
+When processing multiple operations:
+
+```go
+func processOperations(ops protocol.Operations) {
+    for _, op := range ops {
+        switch op.Type() {
+        case protocol.TypeVote:
+            voteOp := op.Data().(*protocol.VoteOperation)
+            processVote(voteOp)
+            
+        case protocol.TypeTransfer:
+            transferOp := op.Data().(*protocol.TransferOperation)
+            processTransfer(transferOp)
+            
+        default:
+            // Log or handle unknown operations
+            fmt.Printf("Unhandled operation type: %s\n", op.Type())
+        }
+    }
+}
+```
+
+#### Important Notes
+
+- **Type Safety**: Always check `op.Type()` before performing type assertions
+- **Unknown Operations**: Use `*json.RawMessage` type assertion to handle unrecognized operations
+- **Performance**: Direct operation casting (e.g., `op.(*VoteOperation)`) is more efficient than using `Data()` for known types
+- **Compatibility**: The `any` return type allows the library to handle both known and unknown operation types flexibly
+
 ## Testing
 
 Run the test suite:
