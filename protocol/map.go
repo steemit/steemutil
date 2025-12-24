@@ -54,3 +54,54 @@ func (m *StringInt64Map) UnmarshalJSON(data []byte) error {
 	*m = mp
 	return nil
 }
+
+// StringBytesMap represents a flat_map<string, vector<char>> which is serialized as array of [key, value] pairs
+type StringBytesMap map[string]string
+
+func (m StringBytesMap) MarshalJSON() ([]byte, error) {
+	xs := make([][]interface{}, 0, len(m))
+	for k, v := range m {
+		xs = append(xs, []interface{}{k, v})
+	}
+	return json.Marshal(xs)
+}
+
+func (m *StringBytesMap) UnmarshalJSON(data []byte) error {
+	var xs [][]interface{}
+	if err := json.Unmarshal(data, &xs); err != nil {
+		return err
+	}
+
+	mp := make(map[string]string, len(xs))
+	for _, kv := range xs {
+		if len(kv) != 2 {
+			continue
+		}
+
+		k, ok := kv[0].(string)
+		if !ok {
+			continue
+		}
+
+		// Value can be string (hex-encoded bytes) or already a string
+		var v string
+		switch val := kv[1].(type) {
+		case string:
+			v = val
+		case []byte:
+			v = string(val)
+		default:
+			// Try to convert to string
+			if str, ok := val.(string); ok {
+				v = str
+			} else {
+				continue
+			}
+		}
+
+		mp[k] = v
+	}
+
+	*m = mp
+	return nil
+}

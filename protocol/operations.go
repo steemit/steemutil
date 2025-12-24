@@ -966,9 +966,9 @@ func (op *AccountCreateWithDelegationOperation) Data() any {
 //             (extensions) )
 
 type WitnessSetPropertiesOperation struct {
-	Owner      string `json:"owner"`
-	Props      string `json:"props"`
-	Extensions []any  `json:"extensions"`
+	Owner      string         `json:"owner"`
+	Props      StringBytesMap `json:"props"`
+	Extensions []any          `json:"extensions"`
 }
 
 func (op *WitnessSetPropertiesOperation) Type() OpType {

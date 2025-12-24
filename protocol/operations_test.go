@@ -262,8 +262,8 @@ func TestCreateClaimedAccountOperation_Type(t *testing.T) {
 
 func TestRequestAccountRecoveryOperation_Type(t *testing.T) {
 	op := &RequestAccountRecoveryOperation{
-		RecoveryAccount:   "recovery",
-		AccountToRecover:  "account",
+		RecoveryAccount:  "recovery",
+		AccountToRecover: "account",
 		NewOwnerAuthority: &Authority{
 			WeightThreshold: 1,
 		},
@@ -290,9 +290,9 @@ func TestRecoverAccountOperation_Type(t *testing.T) {
 
 func TestChangeRecoveryAccountOperation_Type(t *testing.T) {
 	op := &ChangeRecoveryAccountOperation{
-		AccountToRecover:  "account",
+		AccountToRecover:   "account",
 		NewRecoveryAccount: "newrecovery",
-		Extensions:        []interface{}{},
+		Extensions:         []interface{}{},
 	}
 
 	if op.Type() != TypeChangeRecoveryAccount {
@@ -403,7 +403,7 @@ func TestCancelTransferFromSavingsOperation_Type(t *testing.T) {
 
 func TestCustomBinaryOperation_Type(t *testing.T) {
 	op := &CustomBinaryOperation{
-		ID:       "test",
+		ID:        "test",
 		DataBytes: "data",
 	}
 
@@ -467,7 +467,7 @@ func TestAccountCreateWithDelegationOperation_Type(t *testing.T) {
 func TestWitnessSetPropertiesOperation_Type(t *testing.T) {
 	op := &WitnessSetPropertiesOperation{
 		Owner:      "owner",
-		Props:       "props",
+		Props:      StringBytesMap{"key": "value"},
 		Extensions: []interface{}{},
 	}
 
@@ -478,11 +478,11 @@ func TestWitnessSetPropertiesOperation_Type(t *testing.T) {
 
 func TestAccountUpdate2Operation_Type(t *testing.T) {
 	op := &AccountUpdate2Operation{
-		Account:            "account",
-		MemoKey:            "STM8m5UgaFAAYQRuaNejYdS8FVLVp9Ss3K1qAVk5de6F8s3HnVbvA",
-		JsonMetadata:       "{}",
+		Account:             "account",
+		MemoKey:             "STM8m5UgaFAAYQRuaNejYdS8FVLVp9Ss3K1qAVk5de6F8s3HnVbvA",
+		JsonMetadata:        "{}",
 		PostingJsonMetadata: "{}",
-		Extensions:         []interface{}{},
+		Extensions:          []interface{}{},
 	}
 
 	if op.Type() != TypeAccountUpdate2 {
@@ -506,11 +506,11 @@ func TestVote2Operation_Type(t *testing.T) {
 
 func TestCreateProposalOperation_Type(t *testing.T) {
 	op := &CreateProposalOperation{
-		Creator:   "creator",
-		Receiver:  "receiver",
-		DailyPay:  "1.000 STEEM",
-		Subject:   "subject",
-		Permlink:  "permlink",
+		Creator:    "creator",
+		Receiver:   "receiver",
+		DailyPay:   "1.000 STEEM",
+		Subject:    "subject",
+		Permlink:   "permlink",
 		Extensions: []interface{}{},
 	}
 
