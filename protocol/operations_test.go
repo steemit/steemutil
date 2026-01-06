@@ -3,6 +3,7 @@ package protocol
 import (
 	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"testing"
 
 	"github.com/steemit/steemutil/encoder"
@@ -553,5 +554,67 @@ func TestClaimRewardBalance2Operation_Type(t *testing.T) {
 
 	if op.Type() != TypeClaimRewardBalance2 {
 		t.Errorf("expected TypeClaimRewardBalance2, got %v", op.Type())
+	}
+}
+
+func TestChainProperties_UnmarshalJSON_StringFormat(t *testing.T) {
+	// Test old format: string
+	jsonData := `{"account_creation_fee":"0.100 STEEM","maximum_block_size":131072,"sbd_interest_rate":1000}`
+
+	var cp ChainProperties
+	if err := json.Unmarshal([]byte(jsonData), &cp); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	if cp.AccountCreationFee != "0.100 STEEM" {
+		t.Errorf("expected AccountCreationFee to be '0.100 STEEM', got '%s'", cp.AccountCreationFee)
+	}
+	if cp.MaximumBlockSize != 131072 {
+		t.Errorf("expected MaximumBlockSize to be 131072, got %d", cp.MaximumBlockSize)
+	}
+	if cp.SBDInterestRate != 1000 {
+		t.Errorf("expected SBDInterestRate to be 1000, got %d", cp.SBDInterestRate)
+	}
+}
+
+func TestChainProperties_UnmarshalJSON_ObjectFormat(t *testing.T) {
+	// Test new format: object with nai (from the actual error case)
+	jsonData := `{"account_creation_fee":{"amount":"100000","nai":"@@000000021","precision":3},"maximum_block_size":131072,"sbd_interest_rate":1000}`
+
+	var cp ChainProperties
+	if err := json.Unmarshal([]byte(jsonData), &cp); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	// Should be converted to string format: "100.000 STEEM"
+	expected := "100.000 STEEM"
+	if cp.AccountCreationFee != expected {
+		t.Errorf("expected AccountCreationFee to be '%s', got '%s'", expected, cp.AccountCreationFee)
+	}
+	if cp.MaximumBlockSize != 131072 {
+		t.Errorf("expected MaximumBlockSize to be 131072, got %d", cp.MaximumBlockSize)
+	}
+	if cp.SBDInterestRate != 1000 {
+		t.Errorf("expected SBDInterestRate to be 1000, got %d", cp.SBDInterestRate)
+	}
+}
+
+func TestChainProperties_UnmarshalJSON_POWOperation(t *testing.T) {
+	// Test the actual pow_operation format from the error
+	jsonData := `{"worker_account":"nxt4","block_id":"0000044666219088eff80258e4d2c73523a5203c","nonce":427,"work":{"input":"8afebe79fb50fab989ca5a5bd8ebdbbbab838e8e8dc8bb6386889bf6c2344bc7","signature":"1f6dad80034431283996e4a4f95d5130423cffc6d18e7d7ecb89345fe1be7931320c634aa945124c622ca99ab52a3358def3118ca5d12bf3f54d82a539795b707a","work":"002495e36694a3733737138bffaacc4cf425ca868b02214323f70f996934d2c5","worker":"STM5gzvDurFRmVUUs38TDtTtGVAEz8TcWMt4xLVbxwP2PP8b9q7P4"},"props":{"account_creation_fee":{"amount":"100000","nai":"@@000000021","precision":3},"maximum_block_size":131072,"sbd_interest_rate":1000}}`
+
+	var op POWOperation
+	if err := json.Unmarshal([]byte(jsonData), &op); err != nil {
+		t.Fatalf("failed to unmarshal pow_operation: %v", err)
+	}
+
+	if op.WorkerAccount != "nxt4" {
+		t.Errorf("expected WorkerAccount to be 'nxt4', got '%s'", op.WorkerAccount)
+	}
+	if op.Props == nil {
+		t.Fatal("expected Props to be non-nil")
+	}
+	if op.Props.AccountCreationFee != "100.000 STEEM" {
+		t.Errorf("expected AccountCreationFee to be '100.000 STEEM', got '%s'", op.Props.AccountCreationFee)
 	}
 }

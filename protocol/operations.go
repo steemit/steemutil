@@ -82,10 +82,124 @@ type POW struct {
 //             (maximum_block_size)
 //             (sbd_interest_rate) );
 
+// AssetObject represents an asset in the new format (with nai field)
+// Used for account_creation_fee in newer Steem versions
+type AssetObject struct {
+	Amount    string `json:"amount"`
+	NAI       string `json:"nai"` // Native Asset Identifier
+	Precision uint8  `json:"precision"`
+}
+
 type ChainProperties struct {
 	AccountCreationFee string `json:"account_creation_fee"`
 	MaximumBlockSize   uint32 `json:"maximum_block_size"`
 	SBDInterestRate    uint16 `json:"sbd_interest_rate"`
+}
+
+// UnmarshalJSON custom unmarshaling for ChainProperties to handle
+// account_creation_fee as either a string (old format) or an object (new format with nai)
+func (cp *ChainProperties) UnmarshalJSON(data []byte) error {
+	// First, try to unmarshal as a map to check the account_creation_fee type
+	var raw map[string]interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	// Handle account_creation_fee - can be string or object
+	if feeRaw, ok := raw["account_creation_fee"]; ok {
+		switch v := feeRaw.(type) {
+		case string:
+			// Old format: string like "0.100 STEEM"
+			cp.AccountCreationFee = v
+		case map[string]interface{}:
+			// New format: object with amount, nai, precision
+			// Convert to string format for backward compatibility
+			if amount, ok := v["amount"].(string); ok {
+				if nai, ok := v["nai"].(string); ok {
+					if precision, ok := v["precision"].(float64); ok {
+						// Format as "amount symbol" where symbol is derived from nai
+						// For now, we'll store the amount with precision
+						// The nai can be used to determine the symbol later if needed
+						cp.AccountCreationFee = formatAssetFromObject(amount, nai, uint8(precision))
+					} else {
+						cp.AccountCreationFee = amount
+					}
+				} else {
+					cp.AccountCreationFee = amount
+				}
+			} else {
+				// Fallback: try to marshal back to JSON string
+				if feeJSON, err := json.Marshal(v); err == nil {
+					cp.AccountCreationFee = string(feeJSON)
+				}
+			}
+		default:
+			// Unknown type, try to convert to string
+			if feeJSON, err := json.Marshal(v); err == nil {
+				cp.AccountCreationFee = string(feeJSON)
+			}
+		}
+	}
+
+	// Handle maximum_block_size
+	if mbs, ok := raw["maximum_block_size"]; ok {
+		switch v := mbs.(type) {
+		case float64:
+			cp.MaximumBlockSize = uint32(v)
+		case uint32:
+			cp.MaximumBlockSize = v
+		}
+	}
+
+	// Handle sbd_interest_rate
+	if sir, ok := raw["sbd_interest_rate"]; ok {
+		switch v := sir.(type) {
+		case float64:
+			cp.SBDInterestRate = uint16(v)
+		case uint16:
+			cp.SBDInterestRate = v
+		}
+	}
+
+	return nil
+}
+
+// formatAssetFromObject formats an asset object into a string representation
+// This is a helper function to convert the new format to the old string format
+func formatAssetFromObject(amount, nai string, precision uint8) string {
+	// Map common NAIs to symbols
+	symbolMap := map[string]string{
+		"@@000000021": "STEEM",
+		"@@000000013": "SBD",
+		"@@000000037": "VESTS",
+	}
+
+	symbol := symbolMap[nai]
+	if symbol == "" {
+		// Unknown NAI, use the NAI itself
+		symbol = nai
+	}
+
+	// Convert amount string to decimal format
+	// amount is already a string representation of the integer amount
+	// We need to format it with the precision
+	if precision == 0 {
+		return amount + " " + symbol
+	}
+
+	// Format with decimal point
+	amountInt := amount
+	if len(amountInt) <= int(precision) {
+		// Pad with zeros
+		for len(amountInt) < int(precision) {
+			amountInt = "0" + amountInt
+		}
+		return "0." + amountInt + " " + symbol
+	}
+
+	// Insert decimal point
+	dotPos := len(amountInt) - int(precision)
+	return amountInt[:dotPos] + "." + amountInt[dotPos:] + " " + symbol
 }
 
 // FC_REFLECT( steemit::chain::pow_operation,
