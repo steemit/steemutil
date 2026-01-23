@@ -212,7 +212,7 @@ func formatAssetFromObject(amount, nai string, precision uint8) string {
 type POWOperation struct {
 	WorkerAccount string           `json:"worker_account"`
 	BlockID       string           `json:"block_id"`
-	Nonce         *Int             `json:"nonce"`
+	Nonce         *UInt64          `json:"nonce"`
 	Work          *POW             `json:"work"`
 	Props         *ChainProperties `json:"props"`
 }

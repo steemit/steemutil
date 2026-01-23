@@ -618,3 +618,90 @@ func TestChainProperties_UnmarshalJSON_POWOperation(t *testing.T) {
 		t.Errorf("expected AccountCreationFee to be '100.000 STEEM', got '%s'", op.Props.AccountCreationFee)
 	}
 }
+
+func TestPOWOperation_UnmarshalJSON_LargeNonce(t *testing.T) {
+	// Test that large nonce values (beyond int64 range) can be parsed correctly
+	// This is based on the actual data from block 64500
+	jsonData := `{
+		"worker_account": "sminer47",
+		"block_id": "0000fbf357840bfa4e52b569a0498edb20efbe0c",
+		"nonce": "11115213149964598312",
+		"work": {
+			"worker": "STM6tC4qRjUPKmkqkug5DvSgkeND5DHhnfr3XTgpp4b4nejMEwn9k",
+			"input": "d29c469c89252a297cb22c949268593c7c6dcf012c836ce004bf04f7922d1405",
+			"signature": "1fcc715d38c35fcb35dcce0056e770419d5f327c64b2583ba2e8cc7951de6fb0d562b7d6258d5fff41725edd987b2b91cb7c42c9a24eac84c4a393930ec318f3e2",
+			"work": "000000054cbe98830fff5628cb2f9f0464812cf117c55e30e1e0f9d3ac7ef5c2"
+		},
+		"props": {
+			"account_creation_fee": "100.000 STEEM",
+			"maximum_block_size": 131072,
+			"sbd_interest_rate": 1000
+		}
+	}`
+
+	var op POWOperation
+	if err := json.Unmarshal([]byte(jsonData), &op); err != nil {
+		t.Fatalf("Failed to unmarshal POWOperation with large nonce: %v", err)
+	}
+
+	// Verify the operation was parsed correctly
+	if op.WorkerAccount != "sminer47" {
+		t.Errorf("expected worker_account 'sminer47', got %v", op.WorkerAccount)
+	}
+
+	if op.BlockID != "0000fbf357840bfa4e52b569a0498edb20efbe0c" {
+		t.Errorf("expected block_id '0000fbf357840bfa4e52b569a0498edb20efbe0c', got %v", op.BlockID)
+	}
+
+	// Verify the large nonce value was parsed correctly
+	if op.Nonce == nil {
+		t.Fatal("expected nonce to be non-nil")
+	}
+
+	expectedNonce := UInt64(11115213149964598312)
+	if *op.Nonce != expectedNonce {
+		t.Errorf("expected nonce %v, got %v", expectedNonce, *op.Nonce)
+	}
+
+	// Verify work was parsed
+	if op.Work == nil {
+		t.Fatal("expected work to be non-nil")
+	}
+
+	if op.Work.Worker != "STM6tC4qRjUPKmkqkug5DvSgkeND5DHhnfr3XTgpp4b4nejMEwn9k" {
+		t.Errorf("expected work.worker 'STM6tC4qRjUPKmkqkug5DvSgkeND5DHhnfr3XTgpp4b4nejMEwn9k', got %v", op.Work.Worker)
+	}
+
+	// Verify props were parsed
+	if op.Props == nil {
+		t.Fatal("expected props to be non-nil")
+	}
+
+	if op.Props.MaximumBlockSize != 131072 {
+		t.Errorf("expected maximum_block_size 131072, got %v", op.Props.MaximumBlockSize)
+	}
+}
+
+func TestPOWOperation_Type(t *testing.T) {
+	nonce := UInt64(12345)
+	op := &POWOperation{
+		WorkerAccount: "worker",
+		BlockID:       "block_id",
+		Nonce:         &nonce,
+		Work: &POW{
+			Worker:    "STM...",
+			Input:     "input",
+			Signature: "sig",
+			Work:      "work",
+		},
+		Props: &ChainProperties{
+			AccountCreationFee: "0.100 STEEM",
+			MaximumBlockSize:   65536,
+			SBDInterestRate:    1000,
+		},
+	}
+
+	if op.Type() != TypePOW {
+		t.Errorf("expected TypePOW, got %v", op.Type())
+	}
+}
