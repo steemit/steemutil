@@ -283,7 +283,9 @@ func (encoder *Encoder) encodeStruct(rv reflect.Value) error {
 			fieldName := fieldType.Name
 			if fieldName == "Amount" || fieldName == "AmountToSell" || fieldName == "MinToReceive" ||
 				fieldName == "VestingShares" || fieldName == "SBDAmount" || fieldName == "SteemAmount" ||
-				fieldName == "RewardSteem" || fieldName == "RewardSBD" || fieldName == "RewardVests" {
+				fieldName == "RewardSteem" || fieldName == "RewardSBD" || fieldName == "RewardVests" ||
+				fieldName == "Fee" || fieldName == "Delegation" ||
+				fieldName == "AccountCreationFee" || fieldName == "Base" || fieldName == "Quote" {
 				assetStr := field.String()
 				// Check if it looks like an asset string (contains space and has numeric part)
 				if strings.Contains(assetStr, " ") && len(strings.Split(assetStr, " ")) == 2 {

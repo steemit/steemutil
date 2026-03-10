@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"encoding/hex"
 	"encoding/json"
 
 	"github.com/steemit/steemutil/encoder"
@@ -936,6 +937,21 @@ func (op *CancelTransferFromSavingsOperation) Data() any {
 type CustomBinaryOperation struct {
 	ID        string `json:"id"`
 	DataBytes string `json:"data"`
+}
+
+// MarshalTransaction encodes id as string, then data as length-prefixed raw bytes (DataBytes is hex string).
+func (op *CustomBinaryOperation) MarshalTransaction(encoderObj *encoder.Encoder) error {
+	if err := encoderObj.Encode(op.ID); err != nil {
+		return err
+	}
+	data, err := hex.DecodeString(op.DataBytes)
+	if err != nil {
+		return err
+	}
+	if err := encoderObj.EncodeUVarint(uint64(len(data))); err != nil {
+		return err
+	}
+	return encoderObj.WriteBytes(data)
 }
 
 func (op *CustomBinaryOperation) Type() OpType {
