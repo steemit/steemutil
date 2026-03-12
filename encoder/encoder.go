@@ -212,6 +212,12 @@ func (encoder *Encoder) encodeByReflection(v interface{}) error {
 		return errors.New("cannot encode nil value")
 	}
 
+	// Check for TransactionMarshaller BEFORE dereferencing pointers
+	// This is important for types like CommentOptionsExtension that implement MarshalTransaction
+	if marshaller, ok := v.(TransactionMarshaller); ok {
+		return marshaller.MarshalTransaction(encoder)
+	}
+
 	rv := reflect.ValueOf(v)
 	if rv.Kind() == reflect.Ptr {
 		if rv.IsNil() {
@@ -285,7 +291,8 @@ func (encoder *Encoder) encodeStruct(rv reflect.Value) error {
 				fieldName == "VestingShares" || fieldName == "SBDAmount" || fieldName == "SteemAmount" ||
 				fieldName == "RewardSteem" || fieldName == "RewardSBD" || fieldName == "RewardVests" ||
 				fieldName == "Fee" || fieldName == "Delegation" ||
-				fieldName == "AccountCreationFee" || fieldName == "Base" || fieldName == "Quote" {
+				fieldName == "AccountCreationFee" || fieldName == "Base" || fieldName == "Quote" ||
+				fieldName == "MaxAcceptedPayout" {
 				assetStr := field.String()
 				// Check if it looks like an asset string (contains space and has numeric part)
 				if strings.Contains(assetStr, " ") && len(strings.Split(assetStr, " ")) == 2 {
