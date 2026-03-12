@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"encoding/hex"
 	"encoding/json"
 
 	"github.com/steemit/steemutil/encoder"
@@ -537,13 +538,13 @@ func (op *DeleteCommentOperation) Data() any {
 //             (extensions) )
 
 type CommentOptionsOperation struct {
-	Author               string `json:"author"`
-	Permlink             string `json:"permlink"`
-	MaxAcceptedPayout    string `json:"max_accepted_payout"`
-	PercentSteemDollars  uint16 `json:"percent_steem_dollars"`
-	AllowVotes           bool   `json:"allow_votes"`
-	AllowCurationRewards bool   `json:"allow_curation_rewards"`
-	Extensions           []any  `json:"extensions"`
+	Author               string                     `json:"author"`
+	Permlink             string                     `json:"permlink"`
+	MaxAcceptedPayout    string                     `json:"max_accepted_payout"`
+	PercentSteemDollars  uint16                     `json:"percent_steem_dollars"`
+	AllowVotes           bool                       `json:"allow_votes"`
+	AllowCurationRewards bool                       `json:"allow_curation_rewards"`
+	Extensions           CommentOptionsExtensions `json:"extensions"`
 }
 
 func (op *CommentOptionsOperation) Type() OpType {
@@ -553,6 +554,67 @@ func (op *CommentOptionsOperation) Type() OpType {
 func (op *CommentOptionsOperation) Data() any {
 	return op
 }
+
+// Beneficiary represents beneficiary routing information.
+// Steem protocol requires beneficiaries to be sorted alphabetically by account.
+type Beneficiary struct {
+	Account string `json:"account"`
+	Weight  uint16 `json:"weight"`
+}
+
+// CommentPayoutBeneficiaries represents the beneficiaries extension for comment options.
+type CommentPayoutBeneficiaries struct {
+	Beneficiaries []Beneficiary `json:"beneficiaries"`
+}
+
+// CommentOptionsExtensionType defines the extension type tag.
+type CommentOptionsExtensionType uint8
+
+const (
+	// CommentOptionsExtensionBeneficiaries is the tag for beneficiaries extension (0).
+	CommentOptionsExtensionBeneficiaries CommentOptionsExtensionType = 0
+)
+
+// CommentOptionsExtension represents comment_options_extension (static_variant).
+// In Steem protocol: typedef static_variant<comment_payout_beneficiaries> comment_options_extension
+// Serialization format: varint(tag) + value
+type CommentOptionsExtension struct {
+	Tag   CommentOptionsExtensionType
+	Value interface{}
+}
+
+// MarshalTransaction implements TransactionMarshaller interface.
+// Encodes in Steem's static_variant format: varint(tag) + value
+func (e *CommentOptionsExtension) MarshalTransaction(enc *encoder.Encoder) error {
+	// 1. Encode tag as varint
+	if err := enc.EncodeUVarint(uint64(e.Tag)); err != nil {
+		return err
+	}
+	// 2. Encode value
+	return enc.Encode(e.Value)
+}
+
+// MarshalJSON implements json.Marshaler interface.
+// condenser_api's old_sv_from_variant expects array format: [tag, value]
+// See: libraries/plugins/apis/condenser_api/condenser_api_legacy_operations.cpp
+func (e *CommentOptionsExtension) MarshalJSON() ([]byte, error) {
+	// Serialize extension as [tag, value] format (array format)
+	return json.Marshal([]interface{}{uint8(e.Tag), e.Value})
+}
+
+// NewBeneficiariesExtension creates a beneficiaries extension.
+func NewBeneficiariesExtension(beneficiaries []Beneficiary) *CommentOptionsExtension {
+	return &CommentOptionsExtension{
+		Tag: CommentOptionsExtensionBeneficiaries,
+		Value: &CommentPayoutBeneficiaries{
+			Beneficiaries: beneficiaries,
+		},
+	}
+}
+
+// CommentOptionsExtensions is the extension list for comment_options.
+// Corresponds to Steem's flat_set<comment_options_extension>
+type CommentOptionsExtensions []*CommentOptionsExtension
 
 type Authority struct {
 	AccountAuths    StringInt64Map `json:"account_auths"`
@@ -936,6 +998,21 @@ func (op *CancelTransferFromSavingsOperation) Data() any {
 type CustomBinaryOperation struct {
 	ID        string `json:"id"`
 	DataBytes string `json:"data"`
+}
+
+// MarshalTransaction encodes id as string, then data as length-prefixed raw bytes (DataBytes is hex string).
+func (op *CustomBinaryOperation) MarshalTransaction(encoderObj *encoder.Encoder) error {
+	if err := encoderObj.Encode(op.ID); err != nil {
+		return err
+	}
+	data, err := hex.DecodeString(op.DataBytes)
+	if err != nil {
+		return err
+	}
+	if err := encoderObj.EncodeUVarint(uint64(len(data))); err != nil {
+		return err
+	}
+	return encoderObj.WriteBytes(data)
 }
 
 func (op *CustomBinaryOperation) Type() OpType {

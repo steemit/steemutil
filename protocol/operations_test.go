@@ -109,7 +109,7 @@ func TestCommentOptionsOperation_Type(t *testing.T) {
 		PercentSteemDollars:  50,
 		AllowVotes:           true,
 		AllowCurationRewards: true,
-		Extensions:           []interface{}{},
+		Extensions:           CommentOptionsExtensions{},
 	}
 
 	if op.Type() != TypeCommentOptions {
