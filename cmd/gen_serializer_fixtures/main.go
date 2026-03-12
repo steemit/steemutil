@@ -264,6 +264,45 @@ func main() {
 		},
 	))
 
+	// comment_options with beneficiaries
+	fixtures = append(fixtures, makeTxFixture(
+		"comment_options_beneficiaries",
+		"comment_options",
+		&protocol.CommentOptionsOperation{
+			Author:               "alice",
+			Permlink:             "test-post",
+			MaxAcceptedPayout:    "1000000.000 SBD",
+			PercentSteemDollars:  10000,
+			AllowVotes:           true,
+			AllowCurationRewards: true,
+			Extensions: protocol.CommentOptionsExtensions{
+				protocol.NewBeneficiariesExtension([]protocol.Beneficiary{
+					{Account: "bob", Weight: 3000},
+				}),
+			},
+		},
+	))
+
+	// comment_options with multiple beneficiaries (sorted alphabetically as required by Steem)
+	fixtures = append(fixtures, makeTxFixture(
+		"comment_options_beneficiaries_multiple",
+		"comment_options",
+		&protocol.CommentOptionsOperation{
+			Author:               "alice",
+			Permlink:             "test-post-multi",
+			MaxAcceptedPayout:    "1000000.000 SBD",
+			PercentSteemDollars:  10000,
+			AllowVotes:           true,
+			AllowCurationRewards: true,
+			Extensions: protocol.CommentOptionsExtensions{
+				protocol.NewBeneficiariesExtension([]protocol.Beneficiary{
+					{Account: "bob", Weight: 2000},
+					{Account: "charlie", Weight: 1000},
+				}),
+			},
+		},
+	))
+
 	for _, f := range fixtures {
 		writeFixture(outDir, f)
 		fmt.Fprintf(os.Stderr, "wrote fixture %s\n", f.Name)
