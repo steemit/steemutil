@@ -3,6 +3,7 @@ package protocol
 import (
 	"encoding/hex"
 	"encoding/json"
+	"sort"
 
 	"github.com/steemit/steemutil/encoder"
 )
@@ -603,7 +604,13 @@ func (e *CommentOptionsExtension) MarshalJSON() ([]byte, error) {
 }
 
 // NewBeneficiariesExtension creates a beneficiaries extension.
+// Beneficiaries are automatically sorted alphabetically by account name
+// as required by the Steem protocol.
 func NewBeneficiariesExtension(beneficiaries []Beneficiary) *CommentOptionsExtension {
+	// Auto-sort beneficiaries alphabetically by account (Steem protocol requirement)
+	sort.Slice(beneficiaries, func(i, j int) bool {
+		return beneficiaries[i].Account < beneficiaries[j].Account
+	})
 	return &CommentOptionsExtension{
 		Tag: CommentOptionsExtensionBeneficiaries,
 		Value: &CommentPayoutBeneficiaries{
