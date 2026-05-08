@@ -114,3 +114,21 @@ func (tx *SignedTransaction) Verify(pubKeys []*wif.PublicKey, chain *Chain) (boo
 	}
 	return true, nil
 }
+
+// ID calculates and returns the transaction ID.
+// The transaction ID is the SHA256 hash of the serialized transaction (without signatures),
+// represented as a 40-character hex string (first 20 bytes of the hash).
+func (tx *SignedTransaction) ID() string {
+	// Serialize the transaction (without signatures)
+	rawTx, err := tx.Serialize()
+	if err != nil {
+		return ""
+	}
+
+	// Compute SHA256 hash
+	hash := sha256.Sum256(rawTx)
+
+	// Return first 20 bytes as hex string (40 characters)
+	// This matches Steem's transaction ID format
+	return hex.EncodeToString(hash[:20])
+}
