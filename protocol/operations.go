@@ -3,6 +3,7 @@ package protocol
 import (
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"sort"
 
 	"github.com/steemit/steemutil/encoder"
@@ -601,6 +602,36 @@ func (e *CommentOptionsExtension) MarshalTransaction(enc *encoder.Encoder) error
 func (e *CommentOptionsExtension) MarshalJSON() ([]byte, error) {
 	// Serialize extension as [tag, value] format (array format)
 	return json.Marshal([]interface{}{uint8(e.Tag), e.Value})
+}
+
+// UnmarshalJSON implements json.Unmarshaler interface.
+// condenser_api returns each extension as [tag, value] (static_variant).
+func (e *CommentOptionsExtension) UnmarshalJSON(data []byte) error {
+	var tuple []json.RawMessage
+	if err := json.Unmarshal(data, &tuple); err != nil {
+		return err
+	}
+	if len(tuple) != 2 {
+		return fmt.Errorf("comment_options_extension: expected [tag, value], got %d elements", len(tuple))
+	}
+
+	var tag uint8
+	if err := json.Unmarshal(tuple[0], &tag); err != nil {
+		return err
+	}
+	e.Tag = CommentOptionsExtensionType(tag)
+
+	switch e.Tag {
+	case CommentOptionsExtensionBeneficiaries:
+		var beneficiaries CommentPayoutBeneficiaries
+		if err := json.Unmarshal(tuple[1], &beneficiaries); err != nil {
+			return err
+		}
+		e.Value = &beneficiaries
+	default:
+		e.Value = tuple[1]
+	}
+	return nil
 }
 
 // NewBeneficiariesExtension creates a beneficiaries extension.
