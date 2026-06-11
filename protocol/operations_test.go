@@ -117,6 +117,43 @@ func TestCommentOptionsOperation_Type(t *testing.T) {
 	}
 }
 
+func TestCommentOptionsExtension_UnmarshalJSON(t *testing.T) {
+	raw := `[0, {"beneficiaries": [{"account": "san.marco", "weight": 10000}]}]`
+	var ext CommentOptionsExtension
+	if err := json.Unmarshal([]byte(raw), &ext); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+	if ext.Tag != CommentOptionsExtensionBeneficiaries {
+		t.Fatalf("unexpected tag %d", ext.Tag)
+	}
+	b, ok := ext.Value.(*CommentPayoutBeneficiaries)
+	if !ok {
+		t.Fatalf("expected *CommentPayoutBeneficiaries, got %T", ext.Value)
+	}
+	if len(b.Beneficiaries) != 1 || b.Beneficiaries[0].Account != "san.marco" {
+		t.Fatalf("unexpected beneficiaries: %+v", b.Beneficiaries)
+	}
+}
+
+func TestCommentOptionsOperation_UnmarshalJSON_withExtensions(t *testing.T) {
+	raw := `{
+		"allow_curation_rewards": true,
+		"allow_votes": true,
+		"author": "zimmerfield",
+		"extensions": [[0, {"beneficiaries": [{"account": "san.marco", "weight": 10000}]}]],
+		"max_accepted_payout": "1000000.000 SBD",
+		"percent_steem_dollars": 10000,
+		"permlink": "re-re-gauravchugh-life-redefined-20170818t104710636z-20220213t003946z"
+	}`
+	var op CommentOptionsOperation
+	if err := json.Unmarshal([]byte(raw), &op); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+	if len(op.Extensions) != 1 {
+		t.Fatalf("expected 1 extension, got %d", len(op.Extensions))
+	}
+}
+
 func TestCustomJSONOperation_Type(t *testing.T) {
 	op := &CustomJSONOperation{
 		RequiredAuths:        []string{},
