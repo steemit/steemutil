@@ -267,9 +267,9 @@ func (op *AccountCreateOperation) Data() any {
 
 type AccountUpdateOperation struct {
 	Account      string     `json:"account"`
-	Owner        *Authority `json:"owner"`
-	Active       *Authority `json:"active"`
-	Posting      *Authority `json:"posting"`
+	Owner        *Authority `json:"owner" steem:"optional"`
+	Active       *Authority `json:"active" steem:"optional"`
+	Posting      *Authority `json:"posting" steem:"optional"`
 	MemoKey      string     `json:"memo_key"`
 	JsonMetadata string     `json:"json_metadata"`
 }
@@ -1220,9 +1220,9 @@ func (op *WitnessSetPropertiesOperation) Data() any {
 
 type AccountUpdate2Operation struct {
 	Account             string     `json:"account"`
-	Owner               *Authority `json:"owner"`
-	Active              *Authority `json:"active"`
-	Posting             *Authority `json:"posting"`
+	Owner               *Authority `json:"owner" steem:"optional"`
+	Active              *Authority `json:"active" steem:"optional"`
+	Posting             *Authority `json:"posting" steem:"optional"`
 	MemoKey             string     `json:"memo_key"`
 	JsonMetadata        string     `json:"json_metadata"`
 	PostingJsonMetadata string     `json:"posting_json_metadata"`
