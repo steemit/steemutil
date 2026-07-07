@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/steemit/steemutil/wif"
 )
 
 type TransactionMarshaller interface {
@@ -318,6 +319,17 @@ func (encoder *Encoder) encodeStruct(rv reflect.Value) error {
 			}
 		}
 
+		// Check if this is a public_key_type field (tagged steem:"pubkey").
+		// In Steem's binary format, public keys are serialized as fixed
+		// 33-byte blobs (1 byte format + 32 bytes key data), not as
+		// varint-prefixed strings like the Go string fields they inhabit.
+		if field.Kind() == reflect.String && fieldType.Tag.Get("steem") == "pubkey" {
+			if err := encoder.encodePubKey(field.String()); err != nil {
+				return errors.Wrapf(err, "failed to encode public key field %s", fieldType.Name)
+			}
+			continue
+		}
+
 		// Recursively encode the field value
 		if err := encoder.encodeByReflection(fieldValue); err != nil {
 			return errors.Wrapf(err, "failed to encode field %s", fieldType.Name)
@@ -325,6 +337,17 @@ func (encoder *Encoder) encodeStruct(rv reflect.Value) error {
 	}
 
 	return nil
+}
+
+// encodePubKey parses a STM... public key string and encodes it as 33 bytes
+// (1 byte format + 32 bytes key data), matching Steem's public_key_type
+// binary serialization.
+func (encoder *Encoder) encodePubKey(stmKey string) error {
+	pubKey := &wif.PublicKey{}
+	if err := pubKey.FromStr(stmKey); err != nil {
+		return errors.Wrapf(err, "failed to parse public key: %s", stmKey)
+	}
+	return encoder.WriteBytes(pubKey.ToByte())
 }
 
 // encodeSlice encodes a slice by first encoding its length, then each element.

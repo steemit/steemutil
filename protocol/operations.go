@@ -245,7 +245,7 @@ type AccountCreateOperation struct {
 	Owner          *Authority `json:"owner"`
 	Active         *Authority `json:"active"`
 	Posting        *Authority `json:"posting"`
-	MemoKey        string     `json:"memo_key"`
+	MemoKey        string     `json:"memo_key" steem:"pubkey"`
 	JsonMetadata   string     `json:"json_metadata"`
 }
 
@@ -270,7 +270,7 @@ type AccountUpdateOperation struct {
 	Owner        *Authority `json:"owner" steem:"optional"`
 	Active       *Authority `json:"active" steem:"optional"`
 	Posting      *Authority `json:"posting" steem:"optional"`
-	MemoKey      string     `json:"memo_key"`
+	MemoKey      string     `json:"memo_key" steem:"pubkey"`
 	JsonMetadata string     `json:"json_metadata"`
 }
 
@@ -670,7 +670,7 @@ type Authority struct {
 type WitnessUpdateOperation struct {
 	Owner           string           `json:"owner"`
 	URL             string           `json:"url"`
-	BlockSigningKey string           `json:"block_signing_key"`
+	BlockSigningKey string           `json:"block_signing_key" steem:"pubkey"`
 	Props           *ChainProperties `json:"props"`
 	Fee             string           `json:"fee"`
 }
