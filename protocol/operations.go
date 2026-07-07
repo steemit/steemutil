@@ -767,7 +767,7 @@ type CreateClaimedAccountOperation struct {
 	Owner          *Authority `json:"owner"`
 	Active         *Authority `json:"active"`
 	Posting        *Authority `json:"posting"`
-	MemoKey        string     `json:"memo_key"`
+	MemoKey        string     `json:"memo_key" steem:"pubkey"`
 	JsonMetadata   string     `json:"json_metadata"`
 	Extensions     []any      `json:"extensions"`
 }
@@ -1176,7 +1176,7 @@ type AccountCreateWithDelegationOperation struct {
 	Owner          *Authority `json:"owner"`
 	Active         *Authority `json:"active"`
 	Posting        *Authority `json:"posting"`
-	MemoKey        string     `json:"memo_key"`
+	MemoKey        string     `json:"memo_key" steem:"pubkey"`
 	JsonMetadata   string     `json:"json_metadata"`
 	Extensions     []any      `json:"extensions"`
 }
@@ -1223,7 +1223,7 @@ type AccountUpdate2Operation struct {
 	Owner               *Authority `json:"owner" steem:"optional"`
 	Active              *Authority `json:"active" steem:"optional"`
 	Posting             *Authority `json:"posting" steem:"optional"`
-	MemoKey             string     `json:"memo_key"`
+	MemoKey             string     `json:"memo_key" steem:"pubkey"`
 	JsonMetadata        string     `json:"json_metadata"`
 	PostingJsonMetadata string     `json:"posting_json_metadata"`
 	Extensions          []any      `json:"extensions"`
