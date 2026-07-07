@@ -267,18 +267,27 @@ func (encoder *Encoder) encodeStruct(rv reflect.Value) error {
 
 		// Handle pointer fields
 		if field.Kind() == reflect.Ptr {
+			// In Steem's C++ code, some fields are optional<T> (encoded as
+			// bool + value) while others are plain structs that merely use a
+			// Go pointer for nil-safety. A struct tag steem:"optional" marks
+			// the truly optional fields. Untagged pointers are serialized
+			// directly (following the pointer, no presence byte).
+			isOptional := fieldType.Tag.Get("steem") == "optional"
 			if field.IsNil() {
-				// For nil pointers in structs, we need to check if it's optional
-				// In Steem, optional fields are encoded as: bool (has_value) + value
-				// If nil, encode false (0)
-				if err := encoder.EncodeNumber(uint8(0)); err != nil {
-					return errors.Wrapf(err, "failed to encode nil pointer field %s", fieldType.Name)
+				if isOptional {
+					// optional<T> with no value: encode false (0)
+					if err := encoder.EncodeNumber(uint8(0)); err != nil {
+						return errors.Wrapf(err, "failed to encode nil optional field %s", fieldType.Name)
+					}
+					continue
 				}
-				continue
+				return errors.Errorf("non-optional pointer field %s is nil", fieldType.Name)
 			}
-			// Encode true (1) to indicate value is present, then encode the value
-			if err := encoder.EncodeNumber(uint8(1)); err != nil {
-				return errors.Wrapf(err, "failed to encode pointer presence for field %s", fieldType.Name)
+			if isOptional {
+				// Encode true (1) to indicate value is present, then encode the value
+				if err := encoder.EncodeNumber(uint8(1)); err != nil {
+					return errors.Wrapf(err, "failed to encode optional presence for field %s", fieldType.Name)
+				}
 			}
 			fieldValue = field.Elem().Interface()
 		}
