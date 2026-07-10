@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
@@ -164,35 +165,36 @@ func Validate(request *SignedRequest, verifyFunc func(message []byte, signatures
 }
 
 // hashMessage creates the message hash to be signed.
-// This follows the same algorithm as steem-js:
-// message = sha256(K + sha256(timestamp + account + method + params + nonce))
+// message = sha256( K ‖ sha256(timestamp ‖ account ‖ method ‖ params) ‖ nonce )
+// The nonce (8 raw bytes) is included in the OUTER (second) hash, matching
+// @steemit/rpc-auth (see src/index.ts hashMessage). This is the authoritative
+// layout; do not move the nonce into the inner hash or signatures will not
+// verify against JS-signed requests.
 func hashMessage(timestamp, account, method, params string, nonce []byte) []byte {
-	// First hash: sha256(timestamp + account + method + params + nonce)
+	// First (inner) hash: sha256(timestamp + account + method + params)
 	first := sha256.New()
 	first.Write([]byte(timestamp))
 	first.Write([]byte(account))
 	first.Write([]byte(method))
 	first.Write([]byte(params))
-	first.Write(nonce)
 	firstHash := first.Sum(nil)
 
-	// Second hash: sha256(K + firstHash)
+	// Second (outer) hash: sha256(K + firstHash + nonce)
 	second := sha256.New()
 	second.Write(K)
 	second.Write(firstHash)
+	second.Write(nonce)
 
 	return second.Sum(nil)
 }
 
-// DefaultVerifyFunc provides a default verification function that uses public key recovery.
-// This function attempts to recover the public key from the signature and verify it matches
-// the expected account's public keys.
+// DefaultVerifyFunc is a placeholder verification function: it only checks
+// that signatures are well-formed hex strings and performs NO cryptographic
+// verification. Use VerifySignedRpc (bound to an AccountFetcher) for real
+// signature verification against an account's posting authority.
 func DefaultVerifyFunc(message []byte, signatures []string, account string) error {
-	// This is a placeholder implementation.
-	// In a real implementation, you would:
-	// 1. Get the account's public keys from the blockchain
-	// 2. For each signature, recover the public key
-	// 3. Verify that the recovered public key matches one of the account's keys
+	_ = message
+	_ = account
 
 	if len(signatures) == 0 {
 		return errors.New("no signatures provided")
@@ -217,4 +219,101 @@ func SignRequest(method string, params []interface{}, id int, account string, pr
 	}
 
 	return Sign(request, account, []string{privateKey})
+}
+
+// KeyAuth is a single (public key, weight) entry in a Steem account authority.
+type KeyAuth struct {
+	PubKey string `json:"key_auths"` // WIF-style public key string, e.g. "STMxxx"
+	Weight int64  `json:"weight"`
+}
+
+// AccountPostingAuth is the subset of an account's posting authority needed
+// to verify a signed RPC request: the key_auths list and the weight_threshold.
+type AccountPostingAuth struct {
+	KeyAuths        []KeyAuth `json:"key_auths"`
+	WeightThreshold int64     `json:"weight_threshold"`
+}
+
+// AccountFetcher returns the posting authority for the given account. It is
+// injected by the caller (e.g. conveyor uses steemgosdk's get_accounts) so the
+// rpc package does not depend on a specific chain-access mechanism. Returning
+// an account-not-found error is surfaced to the caller as "No such account".
+type AccountFetcher func(account string) (AccountPostingAuth, error)
+
+// VerifySignedRpc verifies that one of the signatures was produced by the
+// account's single posting key over the given 32-byte message digest. It
+// mirrors the @steemit/koa-jsonrpc verifier (src/auth.ts:65-98) byte-for-byte,
+// including the order and exact wording of validation errors, so that Go and
+// JS servers reject/accept the same requests.
+//
+// Only the posting authority is checked (active/owner/memo are ignored). The
+// JS verifier only supports accounts with a single posting key and a single
+// signature, so this function rejects multisig configurations.
+//
+// accountFetcher must return the account's posting authority (key_auths +
+// weight_threshold); a not-found error from the fetcher is reported as
+// "No such account".
+func VerifySignedRpc(message []byte, signatures []string, account string, accountFetcher AccountFetcher) error {
+	// 1. message must be a 32-byte digest
+	if len(message) != 32 {
+		return errors.New("Invalid message")
+	}
+
+	// 2. account name length bounds
+	if len(account) < 3 || len(account) > 16 {
+		return errors.New("Invalid account name")
+	}
+
+	// 3. fetch the account's posting authority
+	auth, err := accountFetcher(account)
+	if err != nil {
+		return errors.New("No such account")
+	}
+
+	// 4. only single posting key is supported
+	if len(auth.KeyAuths) != 1 {
+		return errors.New("Unsupported posting key configuration for account")
+	}
+
+	// 5. the posting key must clear the weight threshold
+	if auth.WeightThreshold > auth.KeyAuths[0].Weight {
+		return errors.New("Signing key not above weight threshold")
+	}
+
+	// 6. only one signature is supported (no multisig)
+	if len(signatures) != 1 {
+		return errors.New("Multisig not supported")
+	}
+
+	// 7. recover the public key from the signature and compare it to the
+	//    account's posting key.
+	signature, err := hex.DecodeString(signatures[0])
+	if err != nil {
+		return errors.New("Invalid signature")
+	}
+
+	// The signature arrives in dsteem/libcrypto compact format. Since the
+	// btcec/decred recovery layout is byte-for-byte identical for compressed
+	// keys, DsteemSigToBttec validates and returns it unchanged before we
+	// hand it to RecoverPublicKeyFromSignature.
+	btcecSig, err := wif.DsteemSigToBtcec(signature)
+	if err != nil {
+		return errors.New("Invalid signature")
+	}
+
+	recovered, err := wif.RecoverPublicKeyFromSignature(message, btcecSig)
+	if err != nil {
+		return errors.New("Invalid signature")
+	}
+
+	expected := &wif.PublicKey{}
+	if err := expected.FromStr(auth.KeyAuths[0].PubKey); err != nil {
+		return errors.New("Invalid signature")
+	}
+
+	if !bytes.Equal(expected.ToByte(), recovered.ToByte()) {
+		return errors.New("Invalid signature")
+	}
+
+	return nil
 }
