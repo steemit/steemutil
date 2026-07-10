@@ -76,21 +76,29 @@ func TestVerifySignedRpc_Tampered(t *testing.T) {
 	msg, _ := hex.DecodeString("4b1eecc536155df76ce97c8879c4429154f856e9dee2d1fb5fd942a9f1a7ebf4")
 
 	sigBytes, _ := hex.DecodeString(jsVector.sigHex)
-	for i := 0; i < len(sigBytes); i++ {
-		// flip a couple bits in byte i, but keep byte0 inside [31,35) when i==0
+
+	// Tamper each of bytes [1, 65) (the r‖s payload) and expect failure.
+	for i := 1; i < len(sigBytes); i++ {
 		flipped := make([]byte, len(sigBytes))
 		copy(flipped, sigBytes)
 		flipped[i] ^= 0x40
-		if i == 0 {
-			// avoid testing the recovery byte here (covered separately); just
-			// ensure a still-valid-range tamper still fails by using 31.
-			if flipped[0] >= 35 || flipped[0] < 31 {
-				continue
-			}
-		}
 		err := VerifySignedRpc(msg, []string{hex.EncodeToString(flipped)}, jsVector.account, singleKeyFetcher(jsVector.pubKey))
 		if err == nil {
-			t.Errorf("tampering byte %d did not fail verification", i)
+			t.Errorf("tampering payload byte %d did not fail verification", i)
+		}
+	}
+
+	// Tamper byte0 (the recovery byte). Values in [31, 35) pass DsteemSigToBtcec
+	// validation but recover a different (or invalid) public key; values outside
+	// [31, 35) are rejected by DsteemSigToBtcec. All must fail verification.
+	origByte0 := sigBytes[0] // 32
+	for _, b0 := range []byte{27, 30, 31, 33, 34, 35} {
+		flipped := make([]byte, len(sigBytes))
+		copy(flipped, sigBytes)
+		flipped[0] = b0
+		err := VerifySignedRpc(msg, []string{hex.EncodeToString(flipped)}, jsVector.account, singleKeyFetcher(jsVector.pubKey))
+		if err == nil {
+			t.Errorf("tampering recovery byte to %d (orig %d) did not fail verification", b0, origByte0)
 		}
 	}
 }

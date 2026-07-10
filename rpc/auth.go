@@ -221,17 +221,21 @@ func SignRequest(method string, params []interface{}, id int, account string, pr
 	return Sign(request, account, []string{privateKey})
 }
 
-// KeyAuth is a single (public key, weight) entry in a Steem account authority.
+// KeyAuth is a single (public key, weight) entry used by VerifySignedRpc. It
+// is an in-memory value passed back from an AccountFetcher; it is NOT used for
+// JSON deserialization. To unmarshal condenser_api.get_accounts responses
+// (whose key_auths wire format is [["STMxxx", weight], ...]) use the separate
+// protocol/api.KeyAuth type, which has a custom UnmarshalJSON.
 type KeyAuth struct {
-	PubKey string `json:"key_auths"` // WIF-style public key string, e.g. "STMxxx"
-	Weight int64  `json:"weight"`
+	PubKey string
+	Weight int64
 }
 
 // AccountPostingAuth is the subset of an account's posting authority needed
 // to verify a signed RPC request: the key_auths list and the weight_threshold.
 type AccountPostingAuth struct {
-	KeyAuths        []KeyAuth `json:"key_auths"`
-	WeightThreshold int64     `json:"weight_threshold"`
+	KeyAuths        []KeyAuth
+	WeightThreshold int64
 }
 
 // AccountFetcher returns the posting authority for the given account. It is

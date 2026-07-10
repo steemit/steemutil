@@ -77,9 +77,9 @@ func (a *AccountAuthEntry) UnmarshalJSON(data []byte) error {
 // weight_threshold is the total weight required to authorize an action under
 // this authority.
 type Authority struct {
-	WeightThreshold uint32            `json:"weight_threshold"`
-	AccountAuths   []AccountAuthEntry `json:"account_auths"`
-	KeyAuths       []KeyAuth          `json:"key_auths"`
+	WeightThreshold uint32             `json:"weight_threshold"`
+	AccountAuths    []AccountAuthEntry `json:"account_auths"`
+	KeyAuths        []KeyAuth          `json:"key_auths"`
 }
 
 // ExtendedAccount models the subset of a condenser_api.get_accounts response
