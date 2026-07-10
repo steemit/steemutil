@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	api "github.com/steemit/steemutil/protocol/api"
 	"github.com/steemit/steemutil/wif"
 )
 
@@ -221,28 +222,14 @@ func SignRequest(method string, params []interface{}, id int, account string, pr
 	return Sign(request, account, []string{privateKey})
 }
 
-// KeyAuth is a single (public key, weight) entry used by VerifySignedRpc. It
-// is an in-memory value passed back from an AccountFetcher; it is NOT used for
-// JSON deserialization. To unmarshal condenser_api.get_accounts responses
-// (whose key_auths wire format is [["STMxxx", weight], ...]) use the separate
-// protocol/api.KeyAuth type, which has a custom UnmarshalJSON.
-type KeyAuth struct {
-	PubKey string
-	Weight int64
-}
-
-// AccountPostingAuth is the subset of an account's posting authority needed
-// to verify a signed RPC request: the key_auths list and the weight_threshold.
-type AccountPostingAuth struct {
-	KeyAuths        []KeyAuth
-	WeightThreshold int64
-}
-
 // AccountFetcher returns the posting authority for the given account. It is
 // injected by the caller (e.g. conveyor uses steemgosdk's get_accounts) so the
 // rpc package does not depend on a specific chain-access mechanism. Returning
-// an account-not-found error is surfaced to the caller as "No such account".
-type AccountFetcher func(account string) (AccountPostingAuth, error)
+// the (api.Authority) of the account's posting key_auths/weight_threshold lets
+// VerifySignedRpc consume the same type conveyor already deserializes into,
+// with no conversion glue. An error from the fetcher (account not found) is
+// surfaced to the caller as "No such account".
+type AccountFetcher func(account string) (api.Authority, error)
 
 // VerifySignedRpc verifies that one of the signatures was produced by the
 // account's single posting key over the given 32-byte message digest. It
@@ -280,7 +267,7 @@ func VerifySignedRpc(message []byte, signatures []string, account string, accoun
 	}
 
 	// 5. the posting key must clear the weight threshold
-	if auth.WeightThreshold > auth.KeyAuths[0].Weight {
+	if uint32(auth.WeightThreshold) > uint32(auth.KeyAuths[0].Weight) {
 		return errors.New("Signing key not above weight threshold")
 	}
 

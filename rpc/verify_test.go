@@ -4,6 +4,8 @@ import (
 	"encoding/hex"
 	"strings"
 	"testing"
+
+	api "github.com/steemit/steemutil/protocol/api"
 )
 
 // errNotFound is a sentinel returned by test fetchers to mean "no such account".
@@ -51,9 +53,9 @@ func TestHashMessage_MatchesJS(t *testing.T) {
 // singleKeyFetcher builds an AccountFetcher that returns the given posting key
 // (weight 1, threshold 1) for any account.
 func singleKeyFetcher(pubKey string) AccountFetcher {
-	return func(string) (AccountPostingAuth, error) {
-		return AccountPostingAuth{
-			KeyAuths:        []KeyAuth{{PubKey: pubKey, Weight: 1}},
+	return func(string) (api.Authority, error) {
+		return api.Authority{
+			KeyAuths:        []api.KeyAuth{{PubKey: pubKey, Weight: 1}},
 			WeightThreshold: 1,
 		}, nil
 	}
@@ -147,8 +149,8 @@ func TestVerifySignedRpc_ErrorMessages(t *testing.T) {
 			message:    msg,
 			signatures: []string{jsVector.sigHex},
 			account:    "noexistaccount",
-			fetcher: func(string) (AccountPostingAuth, error) {
-				return AccountPostingAuth{}, errNotFound
+			fetcher: func(string) (api.Authority, error) {
+				return api.Authority{}, errNotFound
 			},
 			want: "No such account",
 		},
@@ -157,9 +159,9 @@ func TestVerifySignedRpc_ErrorMessages(t *testing.T) {
 			message:    msg,
 			signatures: []string{jsVector.sigHex},
 			account:    jsVector.account,
-			fetcher: func(string) (AccountPostingAuth, error) {
-				return AccountPostingAuth{
-					KeyAuths: []KeyAuth{
+			fetcher: func(string) (api.Authority, error) {
+				return api.Authority{
+					KeyAuths: []api.KeyAuth{
 						{PubKey: jsVector.pubKey, Weight: 1},
 						{PubKey: "STM7W7ACQDZJZ6rZGKeT9auipnSiSxFxJ4k71QXmrhY9HbvYsNnQ2", Weight: 1},
 					},
@@ -173,9 +175,9 @@ func TestVerifySignedRpc_ErrorMessages(t *testing.T) {
 			message:    msg,
 			signatures: []string{jsVector.sigHex},
 			account:    jsVector.account,
-			fetcher: func(string) (AccountPostingAuth, error) {
-				return AccountPostingAuth{
-					KeyAuths:        []KeyAuth{{PubKey: jsVector.pubKey, Weight: 1}},
+			fetcher: func(string) (api.Authority, error) {
+				return api.Authority{
+					KeyAuths:        []api.KeyAuth{{PubKey: jsVector.pubKey, Weight: 1}},
 					WeightThreshold: 2,
 				}, nil
 			},
