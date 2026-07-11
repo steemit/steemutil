@@ -285,9 +285,10 @@ func VerifySignedRpc(message []byte, signatures []string, account string, accoun
 
 	// The signature arrives in dsteem/libcrypto compact format. Since the
 	// btcec/decred recovery layout is byte-for-byte identical for compressed
-	// keys, DsteemSigToBtcec validates and returns it unchanged before we
-	// hand it to RecoverPublicKeyFromSignature.
-	btcecSig, err := wif.DsteemSigToBtcec(signature)
+	// keys, ValidateCompactSignature just validates the format (65 bytes,
+	// byte0 in [31, 35)) and returns it unchanged before we hand it to
+	// RecoverPublicKeyFromSignature.
+	btcecSig, err := wif.ValidateCompactSignature(signature)
 	if err != nil {
 		return errors.New("Invalid signature")
 	}

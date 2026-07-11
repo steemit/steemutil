@@ -90,9 +90,10 @@ func TestVerifySignedRpc_Tampered(t *testing.T) {
 		}
 	}
 
-	// Tamper byte0 (the recovery byte). Values in [31, 35) pass DsteemSigToBtcec
-	// validation but recover a different (or invalid) public key; values outside
-	// [31, 35) are rejected by DsteemSigToBtcec. All must fail verification.
+	// Tamper byte0 (the recovery byte). Values in [31, 35) pass
+	// ValidateCompactSignature but recover a different (or invalid) public key;
+	// values outside [31, 35) are rejected by ValidateCompactSignature. All must
+	// fail verification.
 	origByte0 := sigBytes[0] // 32
 	for _, b0 := range []byte{27, 30, 31, 33, 34, 35} {
 		flipped := make([]byte, len(sigBytes))
