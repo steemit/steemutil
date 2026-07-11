@@ -80,4 +80,3 @@ func TestAPIMethodStructure(t *testing.T) {
 		t.Error("APIMethod.Params not set correctly")
 	}
 }
-
