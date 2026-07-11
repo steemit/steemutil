@@ -62,7 +62,7 @@ func DsteemSigToBtcec(dsteemSig []byte) ([]byte, error) {
 	return out, nil
 }
 
-// BtcecSigToDsteem is the inverse of DsteemSigToBttec. Since the two layouts
+// BtcecSigToDsteem is the inverse of DsteemSigToBtcec. Since the two layouts
 // are identical for compressed keys, this is likewise a validating identity
 // transform. The input must be 65 bytes with byte0 in [31, 35).
 func BtcecSigToDsteem(btcecSig []byte) ([]byte, error) {
