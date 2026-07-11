@@ -70,3 +70,98 @@ func TestUnmarshal_ExtendedAccount(t *testing.T) {
 		t.Errorf("reputation numeric raw: %q", string(acct2.Reputation))
 	}
 }
+
+// TestKeyAuth_MarshalRoundTrip verifies MarshalJSON is the inverse of
+// UnmarshalJSON: the nested-array wire shape survives a round trip.
+func TestKeyAuth_MarshalRoundTrip(t *testing.T) {
+	in := KeyAuth{PubKey: "STM7jNh5ejQoqHqWcGWFJ1v4F5CzsG3EiBuz1VooCng1cH5QpJD27", Weight: 3}
+
+	data, err := json.Marshal(in)
+	if err != nil {
+		t.Fatalf("Marshal failed: %v", err)
+	}
+	// wire shape must be the nested array, not a flat object
+	const want = `["STM7jNh5ejQoqHqWcGWFJ1v4F5CzsG3EiBuz1VooCng1cH5QpJD27",3]`
+	if string(data) != want {
+		t.Errorf("marshal shape\nwant: %s\ngot:  %s", want, string(data))
+	}
+
+	var out KeyAuth
+	if err := json.Unmarshal(data, &out); err != nil {
+		t.Fatalf("Unmarshal failed: %v", err)
+	}
+	if out != in {
+		t.Errorf("round-trip mismatch: want %+v, got %+v", in, out)
+	}
+}
+
+// TestAccountAuthEntry_MarshalRoundTrip verifies AccountAuthEntry round-trips
+// through its nested-array wire form.
+func TestAccountAuthEntry_MarshalRoundTrip(t *testing.T) {
+	in := AccountAuthEntry{Name: "alice", Weight: 2}
+
+	data, err := json.Marshal(in)
+	if err != nil {
+		t.Fatalf("Marshal failed: %v", err)
+	}
+	const want = `["alice",2]`
+	if string(data) != want {
+		t.Errorf("marshal shape\nwant: %s\ngot:  %s", want, string(data))
+	}
+
+	var out AccountAuthEntry
+	if err := json.Unmarshal(data, &out); err != nil {
+		t.Fatalf("Unmarshal failed: %v", err)
+	}
+	if out != in {
+		t.Errorf("round-trip mismatch: want %+v, got %+v", in, out)
+	}
+}
+
+// TestKeyAuth_UnmarshalMalformed verifies that malformed key_auths wire input
+// is rejected with an error rather than silently producing a zero value.
+func TestKeyAuth_UnmarshalMalformed(t *testing.T) {
+	cases := map[string]string{
+		"not an array":       `"STMxxx"`,
+		"single element":     `["STMxxx"]`,
+		"three elements":     `["STMxxx", 1, 2]`,
+		"non-string key":     `[123, 1]`,
+		"non-numeric weight": `["STMxxx", "heavy"]`,
+		"null":               `null`,
+	}
+	for name, src := range cases {
+		t.Run(name, func(t *testing.T) {
+			var k KeyAuth
+			// `null` unmarshals to a zero value without error (standard json
+			// behavior); every other malformed case must error.
+			if src == `null` {
+				if err := json.Unmarshal([]byte(src), &k); err != nil {
+					t.Errorf("expected null to yield zero value, got error: %v", err)
+				}
+				return
+			}
+			if err := json.Unmarshal([]byte(src), &k); err == nil {
+				t.Errorf("expected error for malformed input %s", src)
+			}
+		})
+	}
+}
+
+// TestAccountAuthEntry_UnmarshalMalformed verifies malformed account_auths
+// input is rejected.
+func TestAccountAuthEntry_UnmarshalMalformed(t *testing.T) {
+	cases := map[string]string{
+		"not an array":       `"alice"`,
+		"single element":     `["alice"]`,
+		"three elements":     `["alice", 1, 2]`,
+		"non-numeric weight": `["alice", "heavy"]`,
+	}
+	for name, src := range cases {
+		t.Run(name, func(t *testing.T) {
+			var a AccountAuthEntry
+			if err := json.Unmarshal([]byte(src), &a); err == nil {
+				t.Errorf("expected error for malformed input %s", src)
+			}
+		})
+	}
+}

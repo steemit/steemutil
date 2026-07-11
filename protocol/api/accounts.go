@@ -23,6 +23,10 @@ type KeyAuth struct {
 
 // UnmarshalJSON parses the wire form ["STMxxx", 1] into KeyAuth.
 func (k *KeyAuth) UnmarshalJSON(data []byte) error {
+	// A JSON null leaves the value at its zero value (standard json behavior).
+	if string(data) == "null" {
+		return nil
+	}
 	var pair []json.RawMessage
 	if err := json.Unmarshal(data, &pair); err != nil {
 		return errors.Wrap(err, "key_auths entry must be a [key, weight] array")
@@ -43,6 +47,12 @@ func (k *KeyAuth) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// MarshalJSON emits the wire form ["STMxxx", 1], the inverse of UnmarshalJSON,
+// so a round-trip through JSON preserves the condenser_api array-of-pairs shape.
+func (k KeyAuth) MarshalJSON() ([]byte, error) {
+	return json.Marshal([2]interface{}{k.PubKey, k.Weight})
+}
+
 // AccountAuthEntry is a weighted account name in an account authority. On the
 // wire, account_auths is [["name", weight], ...], parsed the same way as
 // key_auths.
@@ -53,6 +63,10 @@ type AccountAuthEntry struct {
 
 // UnmarshalJSON parses the wire form ["name", 1] into AccountAuthEntry.
 func (a *AccountAuthEntry) UnmarshalJSON(data []byte) error {
+	// A JSON null leaves the value at its zero value (standard json behavior).
+	if string(data) == "null" {
+		return nil
+	}
 	var pair []json.RawMessage
 	if err := json.Unmarshal(data, &pair); err != nil {
 		return errors.Wrap(err, "account_auths entry must be a [name, weight] array")
@@ -71,6 +85,11 @@ func (a *AccountAuthEntry) UnmarshalJSON(data []byte) error {
 	a.Name = name
 	a.Weight = weight
 	return nil
+}
+
+// MarshalJSON emits the wire form ["name", 1], the inverse of UnmarshalJSON.
+func (a AccountAuthEntry) MarshalJSON() ([]byte, error) {
+	return json.Marshal([2]interface{}{a.Name, a.Weight})
 }
 
 // Authority models a Steem account authority (owner / active / posting).
