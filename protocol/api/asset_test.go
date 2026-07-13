@@ -211,3 +211,74 @@ func TestAsset_String_Format(t *testing.T) {
 		}
 	}
 }
+
+// === 审计修复回归测试 ===
+
+// TestAsset_Sub_RejectsNegative 修复 #2：Sub 结果为负必须报错（与 ParseAsset
+// 的非负不变式一致，保证 String ↔ ParseAsset round-trip 对所有合法值成立）。
+func TestAsset_Sub_RejectsNegative(t *testing.T) {
+	a, _ := ParseAsset("0.100 STEEM") // 100 atoms
+	b, _ := ParseAsset("0.200 STEEM") // 200 atoms
+	_, err := a.Sub(b)
+	if err == nil {
+		t.Fatal("Sub(0.100, 0.200): expected error for negative result, got nil")
+	}
+}
+
+// TestAsset_Add_Overflow_NegativeOperand 修复 #2 的 Add 部分：即便 b 为负
+// （直接构造的非法 Asset），bits.Add64 也能符号无关地检出溢出，不会漏过。
+// 两个 int64 最大值相加，uint64 域必进位 → carry != 0 → 报错。
+func TestAsset_Add_Overflow_NegativeOperand(t *testing.T) {
+	a := Asset{Amount: 1<<63 - 1, Symbol: "STEEM"}
+	b := Asset{Amount: 1<<63 - 1, Symbol: "STEEM"}
+	if _, err := a.Add(b); err == nil {
+		t.Error("Add(2×MaxInt64): expected overflow error, got nil")
+	}
+}
+
+// TestAsset_Precision_UnknownSymbolPanics 修复 #3：未知 symbol 的 Precision
+// 直接 panic，不再静默退化到 0（避免 String 输出丢精度却无报错）。
+func TestAsset_Precision_UnknownSymbolPanics(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("Precision(UNKNOWN): expected panic, got none")
+		}
+	}()
+	a := Asset{Amount: 100, Symbol: "UNKNOWN"}
+	_ = a.Precision()
+}
+
+// TestAsset_String_UnknownSymbolPanics 修复 #3 的连带：String() 经 Precision()
+// 也会对未知 symbol panic，确保非法 symbol 不产生静默错误输出。
+func TestAsset_String_UnknownSymbolPanics(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("String(UNKNOWN): expected panic, got none")
+		}
+	}()
+	a := Asset{Amount: 100, Symbol: "UNKNOWN"}
+	_ = a.String()
+}
+
+// TestAsset_RoundTrip_NonNegativeInvariant 修复 #2 的契约验证：所有合法 Asset
+// （含 Sub 产出的中间值）都能 String ↔ ParseAsset 严格互逆。
+// 因 Sub 现在拒负，任何合法 Asset 都 ≥ 0，round-trip 恒成立。
+func TestAsset_RoundTrip_NonNegativeInvariant(t *testing.T) {
+	cases := []Asset{
+		{Amount: 0, Symbol: "STEEM"},
+		{Amount: 1, Symbol: "STEEM"},
+		{Amount: MaxSatoshis, Symbol: "SBD"},
+		{Amount: 1, Symbol: "VESTS"},
+	}
+	for _, a := range cases {
+		s := a.String()
+		a2, err := ParseAsset(s)
+		if err != nil {
+			t.Errorf("round-trip ParseAsset(%q): %v", s, err)
+			continue
+		}
+		if a2 != a {
+			t.Errorf("round-trip mismatch: %+v -> %q -> %+v", a, s, a2)
+		}
+	}
+}

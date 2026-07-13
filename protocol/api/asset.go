@@ -1,6 +1,7 @@
 package api
 
 import (
+	"math/bits"
 	"strconv"
 	"strings"
 
@@ -122,11 +123,14 @@ func ParseAsset(s string) (Asset, error) {
 }
 
 // Precision 返回该 asset symbol 的小数位数。
+//
+// 前置条件：Symbol 必须是经 ParseAsset 校验过的合法 symbol。直接用 Asset{}
+// 字面量构造非法 symbol 属于编程错误，对未知 symbol 直接 panic 而非静默退化
+// （静默返回 0 会让 String() 输出丢精度且无报错，难排查）。
 func (a Asset) Precision() int {
 	prec, err := symbolPrecision(a.Symbol)
 	if err != nil {
-		// 已构造的 Asset 不应出现非法 symbol；退化到 0 避免上层 panic。
-		return 0
+		panic(err)
 	}
 	return prec
 }
@@ -173,28 +177,38 @@ func (a Asset) String() string {
 
 // Add 同 symbol 加法（带溢出检查），对齐 steemd asset::operator+ 的 safe<int64_t> 语义。
 // 不同 symbol 报错（链端 assert base.asset == addend.asset）。
+//
+// 用 math/bits.Add64 做符号无关的精确溢出检查：拿到进位标志即可判定，无需
+// 针对正负组合分别写条件（避免"只在 b>0 时检查"一类遗漏）。
 func (a Asset) Add(b Asset) (Asset, error) {
 	if a.Symbol != b.Symbol {
 		return Asset{}, errors.Errorf(
 			"cannot add assets of different symbols: %s vs %s", a.Symbol, b.Symbol,
 		)
 	}
-	if b.Amount > 0 && a.Amount > MaxSatoshis-b.Amount {
+	sum, carry := bits.Add64(uint64(a.Amount), uint64(b.Amount), 0)
+	if carry != 0 || sum > uint64(MaxSatoshis) {
 		return Asset{}, errors.Errorf("asset addition overflow: %d + %d", a.Amount, b.Amount)
 	}
-	return Asset{Amount: a.Amount + b.Amount, Symbol: a.Symbol}, nil
+	return Asset{Amount: int64(sum), Symbol: a.Symbol}, nil
 }
 
 // Sub 同 symbol 减法（带溢出检查），对齐 steemd asset::operator-。
-// 结果可以为负（用于"净流入"等场景），但仍受 MaxSatoshis 绝对值约束的隐含语义。
+//
+// 结果为负即报错：与 ParseAsset 的"非负"不变式保持一致——所有 Asset（无论来源）
+// 始终代表链上合法值 [0, MaxSatoshis]。需要"净流入"等可能为负的场景由调用方在
+// Sub 前比较大小、自行交换操作数；这样 Asset 的 round-trip 契约（String ↔ ParseAsset）
+// 对所有合法值都严格成立。
 func (a Asset) Sub(b Asset) (Asset, error) {
 	if a.Symbol != b.Symbol {
 		return Asset{}, errors.Errorf(
 			"cannot subtract assets of different symbols: %s vs %s", a.Symbol, b.Symbol,
 		)
 	}
-	if b.Amount > 0 && a.Amount < b.Amount-MaxSatoshis {
-		return Asset{}, errors.Errorf("asset subtraction underflow: %d - %d", a.Amount, b.Amount)
+	if b.Amount > a.Amount {
+		return Asset{}, errors.Errorf(
+			"asset subtraction would be negative: %d - %d", a.Amount, b.Amount,
+		)
 	}
 	return Asset{Amount: a.Amount - b.Amount, Symbol: a.Symbol}, nil
 }

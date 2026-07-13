@@ -46,10 +46,19 @@ func ComputePrices(ob *OrderBook, fh *FeedHistory, dgp *DynamicGlobalProperties)
 		return PricesResult{}, errors.Wrap(err, "compute prices: parse 1.000 STEEM")
 	}
 
-	// 累加 Convert(1.000 STEEM) 的 SBD 原子值。
+	// 累加 Convert(1.000 STEEM) 的对侧 asset 原子值。
+	//
+	// resultSymbol 由首个有效 order 的 Convert 结果决定（不再硬编码），但
+	// ComputePrices 的语义只服务 STEEM/SBD 市场——所以每个 order 必须满足：
+	//   (1) 一侧是 STEEM（与 oneSteem 匹配）；
+	//   (2) 另一侧统一是 SBD（所有 order 的结果 symbol 必须一致）。
+	// 任一条件不满足即视为价格不可信，按整体设计报错而非静默贴错符号。
 	// 用 int64 累加；单笔上限 MaxSatoshis ≈ 4.6e18，订单数远小于 2^63/MaxSatoshis
 	// 时安全。若出现溢出说明订单数异常巨大或单价异常，按链端语义视为错误。
-	var sumSbd int64
+	var (
+		sumSbd       int64
+		resultSymbol string // 首个有效 order 决定；后续必须一致
+	)
 	convert := func(o Order) error {
 		p, err := o.OrderPrice.ToPrice()
 		if err != nil {
@@ -58,6 +67,22 @@ func ComputePrices(ob *OrderBook, fh *FeedHistory, dgp *DynamicGlobalProperties)
 		conv, err := p.Convert(oneSteem)
 		if err != nil {
 			return errors.Wrapf(err, "convert 1.000 STEEM via base=%q quote=%q", o.OrderPrice.Base, o.OrderPrice.Quote)
+		}
+		// 校验结果是 SBD——字段名 SteemSbd 只服务 STEEM/SBD 市场。
+		// 其它符号（如 VESTS）混入说明输入语义不符，报错比贴错标签安全。
+		if conv.Symbol != "SBD" {
+			return errors.Errorf(
+				"order price base=%q quote=%q yields %s, but ComputePrices only supports STEEM/SBD orders",
+				o.OrderPrice.Base, o.OrderPrice.Quote, conv.Symbol,
+			)
+		}
+		if resultSymbol == "" {
+			resultSymbol = conv.Symbol
+		} else if conv.Symbol != resultSymbol {
+			return errors.Errorf(
+				"inconsistent result symbol across orders: had %s, now %s (order base=%q quote=%q)",
+				resultSymbol, conv.Symbol, o.OrderPrice.Base, o.OrderPrice.Quote,
+			)
 		}
 		// 溢出保护：累加前检查。
 		if conv.Amount > 0 && sumSbd > MaxSatoshis-conv.Amount {
@@ -77,8 +102,7 @@ func ComputePrices(ob *OrderBook, fh *FeedHistory, dgp *DynamicGlobalProperties)
 		}
 	}
 
-	// 找一个结果 symbol（从首个有效 order 推断；已在 convert 中保证一致）。
-	resultSymbol := "SBD"
+	// resultSymbol 已由 convert 校验为 "SBD"（非空保证：totalOrders>0 且 convert 成功）。
 	// 整数算术平均（向零截断），贴近 conveyor 原 TS 算术平均语义。
 	avgSbd := sumSbd / int64(totalOrders)
 	result.SteemSbd = Asset{Amount: avgSbd, Symbol: resultSymbol}

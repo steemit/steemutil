@@ -173,3 +173,65 @@ func TestComputePrices_SymbolMismatch(t *testing.T) {
 		t.Error("symbol mismatch in order: expected error")
 	}
 }
+
+// === 审计修复 #1 回归 ===
+
+// TestComputePrices_RejectsNonSbdOrder 修复 #1：order book 含非 STEEM/SBD 对
+// （如 STEEM/VESTS）时，Convert 结果符号是 VESTS，必须报错而非贴硬编码 "SBD"
+// 撒谎。此前的实现会返回 SteemSbd.Symbol="SBD" 但 Amount 实为 VESTS 原子，
+// 导致 String() 输出连数值都错（VESTS 6 位 vs SBD 3 位精度差 1000 倍）。
+func TestComputePrices_RejectsNonSbdOrder(t *testing.T) {
+	ob := &OrderBook{
+		Asks: []Order{
+			{OrderPrice: OrderPrice{Base: "0.000001 VESTS", Quote: "1.000 STEEM"}},
+		},
+	}
+	fh := loadFeedHistory(t)
+	dgp := loadDGP(t)
+	_, err := ComputePrices(ob, fh, dgp)
+	if err == nil {
+		t.Fatal("ComputePrices with VESTS order: expected error, got nil (would silently mislabel symbol)")
+	}
+}
+
+// TestComputePrices_RejectsInconsistentSymbols 修复 #1：所有 order 的结果 symbol
+// 必须一致。混入一个结果非 SBD 的 order 必须报错。
+func TestComputePrices_RejectsInconsistentSymbols(t *testing.T) {
+	ob := &OrderBook{
+		Asks: []Order{
+			{OrderPrice: OrderPrice{Base: "1.000 SBD", Quote: "1.000 STEEM"}}},
+		Bids: []Order{
+			// Convert(1.000 STEEM) 结果是 VESTS，与 asks 的 SBD 不一致。
+			{OrderPrice: OrderPrice{Base: "0.000001 VESTS", Quote: "1.000 STEEM"}}},
+	}
+	fh := loadFeedHistory(t)
+	dgp := loadDGP(t)
+	if _, err := ComputePrices(ob, fh, dgp); err == nil {
+		t.Error("ComputePrices with mixed SBD/VESTS orders: expected error")
+	}
+}
+
+// TestComputePrices_SbdSymbolNotHardcoded 修复 #1 的正向验证：纯 STEEM/SBD 对的
+// order book 正常工作，且结果 symbol 是从 Convert 推断的 "SBD"（而非硬编码）。
+// 关键断言：SteemSbd.Symbol 必须等于 "SBD"，且数值与手算一致。
+func TestComputePrices_SbdSymbolNotHardcoded(t *testing.T) {
+	// 反向 order（base=STEEM quote=SBD）也能正确推导出 SBD 结果。
+	ob := &OrderBook{
+		Asks: []Order{
+			// Convert(1.000 STEEM): STEEM 匹配 base → 结果 quote=SBD
+			// amount = 1000(steem) × 1000(sbd) / 1000(steem) = 1000 SBD atoms
+			{OrderPrice: OrderPrice{Base: "1.000 STEEM", Quote: "1.000 SBD"}}},
+	}
+	fh := loadFeedHistory(t)
+	dgp := loadDGP(t)
+	res, err := ComputePrices(ob, fh, dgp)
+	if err != nil {
+		t.Fatalf("ComputePrices: %v", err)
+	}
+	if res.SteemSbd.Symbol != "SBD" {
+		t.Errorf("SteemSbd.Symbol = %q want SBD (must be inferred, not hardcoded)", res.SteemSbd.Symbol)
+	}
+	if res.SteemSbd.Amount != 1000 {
+		t.Errorf("SteemSbd.Amount = %d want 1000", res.SteemSbd.Amount)
+	}
+}

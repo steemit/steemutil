@@ -48,6 +48,9 @@ func ParsePrice(base, quote string) (Price, error) {
 //
 //	r = (a.Amount * 分子.Amount) / 分母.Amount
 //
+// 前置条件：Price 必须经 ParsePrice 构造（保证 Base/Quote 非零、symbol 合法、
+// 精度正确）。直接用 Price{} 字面量构造绕过校验属于编程错误，其行为未定义。
+//
 // 其中分子/分母取决于 a 的符号匹配哪一边：
 //   - a.Symbol == Base.Symbol：结果符号 = Quote.Symbol，分子 = Quote.Amount，分母 = Base.Amount
 //   - a.Symbol == Quote.Symbol：结果符号 = Base.Symbol，分子 = Base.Amount，分母 = Quote.Amount
