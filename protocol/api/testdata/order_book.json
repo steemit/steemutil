@@ -1,0 +1,10 @@
+{
+  "asks": [
+    {"order_price": {"base": "1.000 SBD", "quote": "1.000 STEEM"}},
+    {"order_price": {"base": "2.000 SBD", "quote": "1.000 STEEM"}}
+  ],
+  "bids": [
+    {"order_price": {"base": "0.500 SBD", "quote": "1.000 STEEM"}},
+    {"order_price": {"base": "0.250 SBD", "quote": "1.000 STEEM"}}
+  ]
+}

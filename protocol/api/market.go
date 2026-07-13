@@ -34,3 +34,16 @@ type CurrentMedianHistoryPrice struct {
 type FeedHistory struct {
 	PriceHistory []CurrentMedianHistoryPrice `json:"price_history"`
 }
+
+// ToPrice 解析 OrderPrice 的 base/quote 字符串为精确的 Price 原语。
+// 是 wire string-asset 字段（"1.000 SBD"）与 Price 之间的桥梁。
+// 调用方拿到 Price 后即可做零浮点的 Convert/Compare 运算。
+func (o OrderPrice) ToPrice() (Price, error) {
+	return ParsePrice(o.Base, o.Quote)
+}
+
+// ToPrice 解析 CurrentMedianHistoryPrice 的 base/quote 字符串为精确的 Price。
+// conveyor 用 feed_history 最后一项推导 STEEM<>USD 价格。
+func (c CurrentMedianHistoryPrice) ToPrice() (Price, error) {
+	return ParsePrice(c.Base, c.Quote)
+}
