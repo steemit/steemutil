@@ -254,8 +254,14 @@ func TestValidate_WithVerifySignedRpc(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Validate with VerifySignedRpc failed: %v", err)
 	}
-	if len(params) != 1 {
-		t.Errorf("expected 1 param, got %d", len(params))
+	// Validate returns interface{} (shape-agnostic); the signed params were an
+	// array, so type-assert before checking length.
+	arr, ok := params.([]interface{})
+	if !ok {
+		t.Fatalf("expected params to be []interface{}, got %T", params)
+	}
+	if len(arr) != 1 {
+		t.Errorf("expected 1 param, got %d", len(arr))
 	}
 }
 

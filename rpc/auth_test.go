@@ -1,11 +1,15 @@
 package rpc
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"testing"
 	"time"
+
+	"github.com/steemit/steemutil/wif"
 )
 
 // Test constants
@@ -113,14 +117,21 @@ func TestValidate(t *testing.T) {
 		t.Fatalf("Validate failed: %v", err)
 	}
 
-	// Verify that we got back the original params
-	if len(params) != len(testParams) {
-		t.Errorf("Expected %d params, got %d", len(testParams), len(params))
+	// Validate now returns interface{} (shape-agnostic, matching JS JSON.parse).
+	// The original testParams is []interface{}{[]string{"testuser"}}, so the
+	// decoded params should be a []interface{} with one element.
+	arr, ok := params.([]interface{})
+	if !ok {
+		t.Fatalf("Expected params to be []interface{}, got %T", params)
+	}
+
+	if len(arr) != len(testParams) {
+		t.Errorf("Expected %d params, got %d", len(testParams), len(arr))
 	}
 
 	// Compare the first param (should be a slice of strings)
 	originalParam := testParams[0].([]string)
-	recoveredParam := params[0].([]interface{})
+	recoveredParam := arr[0].([]interface{})
 
 	if len(recoveredParam) != len(originalParam) {
 		t.Errorf("Expected param length %d, got %d", len(originalParam), len(recoveredParam))
@@ -128,6 +139,63 @@ func TestValidate(t *testing.T) {
 
 	if recoveredParam[0].(string) != originalParam[0] {
 		t.Errorf("Expected param value '%s', got '%s'", originalParam[0], recoveredParam[0])
+	}
+}
+
+// TestValidate_ObjectParams is the regression test for the []interface{} bug.
+// Signed params in real-world conveyor / koa-jsonrpc clients are JSON objects
+// (e.g. {"account":"foo"}), not arrays. The old []interface{} decode target
+// would reject objects with "failed to unmarshal params".
+func TestValidate_ObjectParams(t *testing.T) {
+	// Build a signed request with object params (as a JSON string, since
+	// RpcRequest.Params is []interface{} — but Sign marshals whatever it gets).
+	// We construct the SignedRequest manually to use an object payload.
+	objParams := map[string]interface{}{
+		"account": "foo",
+		"meta":    map[string]interface{}{"k": "v"},
+	}
+	paramsJSON, _ := json.Marshal(objParams)
+	paramsB64 := base64.StdEncoding.EncodeToString(paramsJSON)
+	nonceBytes := make([]byte, 8)
+	rand.Read(nonceBytes)
+	timestamp := time.Now().UTC().Format(time.RFC3339Nano)
+
+	message := hashMessage(timestamp, testAccount, testMethod, paramsB64, nonceBytes)
+
+	privKey := &wif.PrivateKey{}
+	if err := privKey.FromWif(testPrivateKey); err != nil {
+		t.Fatalf("failed to parse private key: %v", err)
+	}
+	sig, err := privKey.SignSha256(message)
+	if err != nil {
+		t.Fatalf("failed to sign: %v", err)
+	}
+
+	signedRequest := &SignedRequest{
+		JsonRpc: "2.0",
+		Method:  testMethod,
+		ID:      1,
+	}
+	signedRequest.Params.Signed = SignedParams{
+		Account:    testAccount,
+		Nonce:      hex.EncodeToString(nonceBytes),
+		Params:     paramsB64,
+		Signatures: []string{hex.EncodeToString(sig)},
+		Timestamp:  timestamp,
+	}
+
+	params, err := Validate(signedRequest, DefaultVerifyFunc)
+	if err != nil {
+		t.Fatalf("Validate with object params failed: %v", err)
+	}
+
+	// The returned params should be a map (JSON object), not an array.
+	obj, ok := params.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected params to be map[string]interface{}, got %T", params)
+	}
+	if obj["account"] != "foo" {
+		t.Errorf("Expected account 'foo', got %v", obj["account"])
 	}
 }
 

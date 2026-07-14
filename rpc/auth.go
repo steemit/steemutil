@@ -111,7 +111,14 @@ func Sign(request *RpcRequest, account string, privateKeys []string) (*SignedReq
 
 // Validate validates a signed JSON-RPC request.
 // The verifyFunc should verify that the signatures are valid for the given account.
-func Validate(request *SignedRequest, verifyFunc func(message []byte, signatures []string, account string) error) ([]interface{}, error) {
+//
+// The decoded params are returned as interface{} (not []interface{}) to match
+// the shape-agnostic semantics of the JS reference (@steemit/rpc-auth validate),
+// which returns JSON.parse(jsonString). Signed params can be a JSON object,
+// array, or scalar — conveyor and koa-jsonrpc clients sign object params
+// (e.g. {"account":"foo"}), so constraining to []interface{} would reject
+// every real-world authenticated request.
+func Validate(request *SignedRequest, verifyFunc func(message []byte, signatures []string, account string) error) (interface{}, error) {
 	if request.JsonRpc != "2.0" || request.Method == "" {
 		return nil, errors.New("invalid JSON RPC request")
 	}
@@ -122,8 +129,9 @@ func Validate(request *SignedRequest, verifyFunc func(message []byte, signatures
 		return nil, errors.New("missing account")
 	}
 
-	// Decode and validate params
-	var params []interface{}
+	// Decode and validate params. The target is interface{} so that any valid
+	// JSON shape (object, array, scalar) is accepted, matching JSON.parse in JS.
+	var params interface{}
 	paramsJSON, err := base64.StdEncoding.DecodeString(signed.Params)
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid encoded params")
