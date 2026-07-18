@@ -14,6 +14,12 @@ import (
 	"github.com/pkg/errors"
 )
 
+// errInvalidSignature is returned by Verify when a signature fails any
+// non-parse validation check (wrong key, tampered digest, bad format).
+// Recoverable parse failures are surfaced as errors too; callers that only
+// care about the boolean result can ignore the error.
+var errInvalidSignature = errors.New("invalid transaction signature")
+
 type SignedTransaction struct {
 	*Transaction
 }
@@ -93,6 +99,17 @@ func (tx *SignedTransaction) Sign(privKeys []*wif.PrivateKey, chain *Chain) erro
 	return nil
 }
 
+// Verify validates every signature on the transaction against pubKeys by
+// recovering each signer's public key from the compact (recoverable)
+// signature and comparing it to the expected key.
+//
+// Signatures are produced by Sign via ecdsa.SignCompact, i.e. they are
+// 65-byte compact signatures whose first byte encodes the recovery id
+// (range 31..34 for compressed keys). Verification therefore must use
+// recover-and-compare (ecdsa.RecoverCompact), not DER parsing.
+//
+// Verify is fail-closed: an empty signature slice, a count mismatch, a
+// malformed signature, or any key mismatch yields (false, <non-nil error>).
 func (tx *SignedTransaction) Verify(pubKeys []*wif.PublicKey, chain *Chain) (bool, error) {
 	// Compute digest
 	digest, err := tx.Digest(chain)
@@ -100,16 +117,41 @@ func (tx *SignedTransaction) Verify(pubKeys []*wif.PublicKey, chain *Chain) (boo
 		return false, err
 	}
 
-	// Parse signatures
-	sigs := make([][]byte, 0, len(tx.Signatures))
-	for i, sig := range sigs {
-		tmpSig, err := ecdsa.ParseSignature(sig)
+	// Fail-closed: no signatures means nothing to verify.
+	if len(tx.Signatures) == 0 {
+		return false, errors.Wrap(errInvalidSignature, "no signatures to verify")
+	}
+	// Each signature corresponds positionally to one pubKey.
+	if len(pubKeys) < len(tx.Signatures) {
+		return false, errors.Wrapf(errInvalidSignature, "need %d pubkeys, got %d", len(tx.Signatures), len(pubKeys))
+	}
+
+	for i, sigHex := range tx.Signatures {
+		sig, err := hex.DecodeString(sigHex)
 		if err != nil {
-			return false, err
+			return false, errors.Wrapf(errInvalidSignature, "signature %d is not valid hex", i)
 		}
-		verified := tmpSig.Verify(digest, pubKeys[i].Raw)
-		if !verified {
-			return false, nil
+
+		// Reject anything that is not a well-formed compact signature in the
+		// compressed-key recovery range. This mirrors wif.ValidateCompactSignature
+		// without the package cycle of importing wif here.
+		if _, err := wif.ValidateCompactSignature(sig); err != nil {
+			return false, errors.Wrapf(errInvalidSignature, "signature %d: %v", i, err)
+		}
+
+		// Recover the public key that produced this signature over the digest.
+		recovered, wasCompressed, err := ecdsa.RecoverCompact(sig, digest)
+		if err != nil {
+			return false, errors.Wrapf(errInvalidSignature, "signature %d recovery failed: %v", i, err)
+		}
+		if !wasCompressed {
+			return false, errors.Wrapf(errInvalidSignature, "signature %d was not compressed", i)
+		}
+
+		// Constant-time-independent byte compare of the recovered compressed
+		// key against the expected signer's compressed key.
+		if !bytes.Equal(recovered.SerializeCompressed(), pubKeys[i].Raw.SerializeCompressed()) {
+			return false, errors.Wrapf(errInvalidSignature, "signature %d was not produced by pubkey %d", i, i)
 		}
 	}
 	return true, nil
