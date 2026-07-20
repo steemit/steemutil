@@ -1,155 +1,159 @@
 package auth
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/sha512"
+	"encoding/binary"
 	"io"
+	"time"
 
 	"github.com/btcsuite/btcd/btcutil/base58"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/pkg/errors"
+	"github.com/steemit/steemutil/encoder"
 	"github.com/steemit/steemutil/wif"
 )
 
-// EncryptedMemo represents an encrypted memo structure.
+// EncryptedMemo represents an encrypted memo, serialized to the canonical
+// Steem wire format (compatible with steem-js / steemd).
+//
+// Layout (all little-endian):
+//
+//	from     33 bytes  compressed secp256k1 public key of the sender
+//	to       33 bytes  compressed secp256k1 public key of the recipient
+//	nonce     8 bytes  uint64 nonce (little-endian)
+//	check     4 bytes  uint32 checksum (little-endian)
+//	n         varint   byte length of the ciphertext
+//	cipher    n bytes  AES-256-CBC ciphertext
 type EncryptedMemo struct {
-	From      string `json:"from"`
-	To        string `json:"to"`
-	Nonce     []byte `json:"nonce"`
-	Check     []byte `json:"check"`
-	Encrypted []byte `json:"encrypted"`
+	From      *wif.PublicKey
+	To        *wif.PublicKey
+	Nonce     uint64
+	Check     uint32
+	Encrypted []byte
 }
 
+// nonceLen is the fixed length of the on-wire nonce (uint64, little-endian).
+const nonceLen = 8
+
 // Encode encrypts a memo if it starts with '#', otherwise returns it as-is.
-// privateKey can be a WIF string or a PrivateKey object.
-// publicKey can be a public key string or a PublicKey object.
+// privateKey can be a WIF string or a *wif.PrivateKey.
+// publicKey can be a public key string (STM...) or a *wif.PublicKey.
+//
+// The encrypted output is byte-for-byte compatible with steem-js
+// memo.encode (next branch): ECDH shared secret, SHA-512 key derivation,
+// AES-256-CBC, and the canonical EncryptedMemo serialization.
 func Encode(privateKey interface{}, publicKey interface{}, memo string) (string, error) {
+	return EncodeWithNonce(privateKey, publicKey, memo, UniqueNonce())
+}
+
+// EncodeWithNonce is like Encode but with a caller-supplied nonce. It exists
+// primarily for deterministic tests; production callers should use Encode.
+func EncodeWithNonce(privateKey interface{}, publicKey interface{}, memo string, nonce uint64) (string, error) {
 	if memo == "" {
 		return "", errors.New("memo is required")
 	}
 
-	// If memo doesn't start with '#', return as-is
-	if len(memo) == 0 || memo[0] != '#' {
+	// Plain memos (no '#' prefix) pass through unmodified.
+	if memo[0] != '#' {
 		return memo, nil
 	}
+	plain := memo[1:]
 
-	// Remove '#' prefix
-	memo = memo[1:]
-
-	// Convert private key to PrivateKey object
 	privKey, err := toPrivateKey(privateKey)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to convert private key")
 	}
-
-	// Convert public key to PublicKey object
 	pubKey, err := toPublicKey(publicKey)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to convert public key")
 	}
 
-	// Get sender's public key
+	// Sender's own public key.
 	senderPubKey := &wif.PublicKey{}
 	if err := senderPubKey.FromStr(privKey.ToPubKeyStr()); err != nil {
-		return "", errors.Wrap(err, "failed to get sender public key")
+		return "", errors.Wrap(err, "failed to derive sender public key")
 	}
 
-	// Determine recipient public key
-	recipientPubKey := pubKey
-	if senderPubKey.ToStr() == pubKey.ToStr() {
-		// If sender and recipient are the same, we need the other key
-		// This is a simplified version - in practice, you'd need the actual recipient key
-		recipientPubKey = pubKey
-	}
-
-	// Encrypt the memo
-	encrypted, nonce, checksum, err := encryptMemo(privKey, recipientPubKey, []byte(memo))
+	encrypted, checksum, err := encryptMemo(privKey, pubKey, []byte(plain), nonce)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to encrypt memo")
 	}
 
-	// Create encrypted memo structure
 	encMemo := EncryptedMemo{
-		From:      senderPubKey.ToStr(),
-		To:        recipientPubKey.ToStr(),
+		From:      senderPubKey,
+		To:        pubKey,
 		Nonce:     nonce,
 		Check:     checksum,
 		Encrypted: encrypted,
 	}
 
-	// Serialize (simplified - in practice, you'd use the proper serializer)
-	// For now, we'll use a simple base64 encoding
 	memoBytes, err := serializeEncryptedMemo(encMemo)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to serialize encrypted memo")
 	}
 
-	// Encode to base58
-	encoded := base58.Encode(memoBytes)
-	return "#" + encoded, nil
+	return "#" + base58.Encode(memoBytes), nil
 }
 
 // Decode decrypts a memo if it starts with '#', otherwise returns it as-is.
+// privateKey can be a WIF string or a *wif.PrivateKey.
+//
+// The decryption is symmetric with Encode and interoperates with memos
+// produced by steem-js memo.encode: given a memo encrypted by A for B, B (and
+// only B) can recover the plaintext.
 func Decode(privateKey interface{}, memo string) (string, error) {
 	if memo == "" {
 		return "", errors.New("memo is required")
 	}
-
-	// If memo doesn't start with '#', return as-is
-	if len(memo) == 0 || memo[0] != '#' {
+	if memo[0] != '#' {
 		return memo, nil
 	}
 
-	// Remove '#' prefix
-	memo = memo[1:]
-
-	// Convert private key to PrivateKey object
 	privKey, err := toPrivateKey(privateKey)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to convert private key")
 	}
 
-	// Decode from base58
-	memoBytes := base58.Decode(memo)
+	memoBytes := base58.Decode(memo[1:])
 
-	// Deserialize encrypted memo
 	encMemo, err := deserializeEncryptedMemo(memoBytes)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to deserialize encrypted memo")
 	}
 
-	// Get sender's public key
+	// Identify the other party's public key. We are either the sender (our
+	// pubkey == From) or the recipient (our pubkey == To).
 	senderPubKey := &wif.PublicKey{}
 	if err := senderPubKey.FromStr(privKey.ToPubKeyStr()); err != nil {
-		return "", errors.Wrap(err, "failed to get sender public key")
+		return "", errors.Wrap(err, "failed to derive our public key")
 	}
 
-	// Determine the other party's public key
 	var otherPubKey *wif.PublicKey
-	if senderPubKey.ToStr() == encMemo.From {
-		otherPubKey = &wif.PublicKey{}
-		if err := otherPubKey.FromStr(encMemo.To); err != nil {
-			return "", errors.Wrap(err, "failed to parse recipient public key")
-		}
-	} else {
-		otherPubKey = &wif.PublicKey{}
-		if err := otherPubKey.FromStr(encMemo.From); err != nil {
-			return "", errors.Wrap(err, "failed to parse sender public key")
-		}
+	switch {
+	case senderPubKey.ToStr() == encMemo.From.ToStr():
+		otherPubKey = encMemo.To
+	case senderPubKey.ToStr() == encMemo.To.ToStr():
+		otherPubKey = encMemo.From
+	default:
+		return "", errors.New("memo was not encrypted for this key")
 	}
 
-	// Decrypt the memo
-	decrypted, err := decryptMemo(privKey, otherPubKey, encMemo.Nonce, encMemo.Encrypted, encMemo.Check)
+	plain, err := decryptMemo(privKey, otherPubKey, encMemo.Nonce, encMemo.Encrypted, encMemo.Check)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to decrypt memo")
 	}
 
-	// Return with '#' prefix
-	return "#" + string(decrypted), nil
+	return "#" + string(plain), nil
 }
 
-// Helper functions
+// ----------------------------------------------------------------------------
+// key conversion helpers
+// ----------------------------------------------------------------------------
 
 func toPrivateKey(key interface{}) (*wif.PrivateKey, error) {
 	switch v := key.(type) {
@@ -181,93 +185,123 @@ func toPublicKey(key interface{}) (*wif.PublicKey, error) {
 	}
 }
 
-// encryptMemo encrypts a memo using AES-256-CBC with shared secret derived from ECDH.
-func encryptMemo(privKey *wif.PrivateKey, pubKey *wif.PublicKey, message []byte) ([]byte, []byte, []byte, error) {
-	// Generate shared secret using ECDH
-	sharedSecret := deriveSharedSecret(privKey, pubKey)
+// ----------------------------------------------------------------------------
+// cryptography (Steem memo spec, matches steem-js)
+// ----------------------------------------------------------------------------
 
-	// Generate random nonce
-	nonce := make([]byte, 16)
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		return nil, nil, nil, err
-	}
-
-	// Create AES cipher
-	block, err := aes.NewCipher(sharedSecret[:32])
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	// Use CBC mode
-	iv := nonce
-	mode := cipher.NewCBCEncrypter(block, iv)
-
-	// Pad message
-	padded := pkcs7Pad(message, aes.BlockSize)
-
-	// Encrypt
-	encrypted := make([]byte, len(padded))
-	mode.CryptBlocks(encrypted, padded)
-
-	// Calculate checksum (first 4 bytes of SHA256 of encrypted data)
-	hash := sha256.Sum256(encrypted)
-	checksum := hash[:4]
-
-	return encrypted, nonce, checksum, nil
+// sharedSecret computes the ECDH shared secret S = SHA-512(x), where x is the
+// 32-byte X coordinate of privKey * pubKey on secp256k1. This is symmetric:
+// SHA-512(privA * pubB) == SHA-512(privB * pubA).
+//
+// wif.PrivateKey.Raw.PrivKey is *btcec.PrivateKey, which is a type alias for
+// *secp256k1.PrivateKey (btcec/v2 re-exports decred's secp256k1/v4), so it can
+// be passed to GenerateSharedSecret with no conversion.
+func sharedSecret(privKey *wif.PrivateKey, pubKey *wif.PublicKey) []byte {
+	x := secp256k1.GenerateSharedSecret(privKey.Raw.PrivKey, pubKey.Raw)
+	s := sha512.Sum512(x)
+	return s[:] // 64 bytes
 }
 
-// decryptMemo decrypts a memo using AES-256-CBC.
-func decryptMemo(privKey *wif.PrivateKey, pubKey *wif.PublicKey, nonce, encrypted, checksum []byte) ([]byte, error) {
-	// Verify checksum
-	hash := sha256.Sum256(encrypted)
-	if len(checksum) < 4 {
-		return nil, errors.New("invalid checksum length")
-	}
-	for i := 0; i < 4; i++ {
-		if hash[i] != checksum[i] {
-			return nil, errors.New("checksum mismatch")
-		}
+// deriveEncryptionKey derives the 64-byte encryption key material:
+//
+//	ek = SHA-512( uint64_le(nonce) || S )
+//
+// The first 32 bytes are the AES-256 key; bytes [32:48] are the AES-CBC IV;
+// the checksum is derived separately (see encryptMemo).
+func deriveEncryptionKey(privKey *wif.PrivateKey, pubKey *wif.PublicKey, nonce uint64) []byte {
+	s := sharedSecret(privKey, pubKey)
+	var nonceBuf [nonceLen]byte
+	binary.LittleEndian.PutUint64(nonceBuf[:], nonce)
+	h := sha512.New()
+	h.Write(nonceBuf[:])
+	h.Write(s)
+	return h.Sum(nil) // 64 bytes
+}
+
+// checksumOf returns the 4-byte little-endian checksum = SHA-256(ek)[0:4]
+// reinterpreted as a uint32 (matching steem-js Aes.encrypt).
+func checksumOf(ek []byte) uint32 {
+	sum := sha256.Sum256(ek)
+	return binary.LittleEndian.Uint32(sum[0:4])
+}
+
+// encryptMemo encrypts message for pubKey under a fresh key derived from the
+// ECDH shared secret and nonce. Returns (ciphertext, checksum).
+func encryptMemo(privKey *wif.PrivateKey, pubKey *wif.PublicKey, message []byte, nonce uint64) ([]byte, uint32, error) {
+	ek := deriveEncryptionKey(privKey, pubKey, nonce)
+	key := ek[0:32]
+	iv := ek[32:48]
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, 0, err
 	}
 
-	// Generate shared secret using ECDH
-	sharedSecret := deriveSharedSecret(privKey, pubKey)
+	// Steem prefixes the plaintext with a varint length (bytebuffer
+	// writeVString) before encryption.
+	prefixed := prefixVarString(message)
+	padded := pkcs7Pad(prefixed, aes.BlockSize)
 
-	// Create AES cipher
-	block, err := aes.NewCipher(sharedSecret[:32])
+	ciphertext := make([]byte, len(padded))
+	cipher.NewCBCEncrypter(block, iv).CryptBlocks(ciphertext, padded)
+
+	return ciphertext, checksumOf(ek), nil
+}
+
+// decryptMemo is the inverse of encryptMemo.
+func decryptMemo(privKey *wif.PrivateKey, pubKey *wif.PublicKey, nonce uint64, ciphertext []byte, checksum uint32) ([]byte, error) {
+	if len(ciphertext) == 0 || len(ciphertext)%aes.BlockSize != 0 {
+		return nil, errors.New("invalid ciphertext length")
+	}
+
+	ek := deriveEncryptionKey(privKey, pubKey, nonce)
+	if checksumOf(ek) != checksum {
+		return nil, errors.New("checksum mismatch")
+	}
+
+	block, err := aes.NewCipher(ek[0:32])
 	if err != nil {
 		return nil, err
 	}
 
-	// Use CBC mode
-	iv := nonce
-	mode := cipher.NewCBCDecrypter(block, iv)
+	padded := make([]byte, len(ciphertext))
+	cipher.NewCBCDecrypter(block, ek[32:48]).CryptBlocks(padded, ciphertext)
 
-	// Decrypt
-	decrypted := make([]byte, len(encrypted))
-	mode.CryptBlocks(decrypted, encrypted)
-
-	// Remove padding
-	unpadded, err := pkcs7Unpad(decrypted)
+	plain, err := pkcs7Unpad(padded)
 	if err != nil {
 		return nil, err
 	}
 
-	return unpadded, nil
+	// Strip the varint length prefix that writeVString added at encrypt time.
+	return stripVarString(plain)
 }
 
-// deriveSharedSecret derives a shared secret using ECDH.
-func deriveSharedSecret(privKey *wif.PrivateKey, pubKey *wif.PublicKey) []byte {
-	// ECDH: shared secret = privKey * pubKey
-	// This is a simplified version - in practice, you'd use proper ECDH
-	// For now, we'll use a combination of both keys
-	privBytes := privKey.ToByte()
-	pubBytes := pubKey.ToByte()
-	combined := append(privBytes, pubBytes...)
-	hash := sha256.Sum256(combined)
-	return hash[:]
+// prefixVarString prepends an unsigned LEB128 varint encoding of len(b),
+// matching bytebuffer's writeVString (which uses unsigned writeVarint32).
+func prefixVarString(b []byte) []byte {
+	var buf [binary.MaxVarintLen64]byte
+	n := binary.PutUvarint(buf[:], uint64(len(b)))
+	out := make([]byte, n+len(b))
+	copy(out, buf[:n])
+	copy(out[n:], b)
+	return out
 }
 
-// pkcs7Pad adds PKCS7 padding to data.
+// stripVarString removes the leading unsigned varint length and returns the
+// bytes it described. It mirrors prefixVarString and tolerates only a
+// well-formed length that matches the remaining bytes.
+func stripVarString(b []byte) ([]byte, error) {
+	length, n := binary.Uvarint(b)
+	if n <= 0 {
+		return nil, errors.New("invalid varint length prefix")
+	}
+	if uint64(len(b)-n) != length {
+		return nil, errors.Errorf("varint length %d does not match payload %d", length, len(b)-n)
+	}
+	return b[n:], nil
+}
+
+// pkcs7Pad applies PKCS#7 padding so len(data) is a multiple of blockSize.
 func pkcs7Pad(data []byte, blockSize int) []byte {
 	padding := blockSize - len(data)%blockSize
 	padtext := make([]byte, padding)
@@ -277,13 +311,13 @@ func pkcs7Pad(data []byte, blockSize int) []byte {
 	return append(data, padtext...)
 }
 
-// pkcs7Unpad removes PKCS7 padding from data.
+// pkcs7Unpad validates and removes PKCS#7 padding.
 func pkcs7Unpad(data []byte) ([]byte, error) {
 	if len(data) == 0 {
 		return nil, errors.New("empty data")
 	}
 	padding := int(data[len(data)-1])
-	if padding > len(data) || padding == 0 {
+	if padding == 0 || padding > len(data) {
 		return nil, errors.New("invalid padding")
 	}
 	for i := len(data) - padding; i < len(data); i++ {
@@ -294,77 +328,106 @@ func pkcs7Unpad(data []byte) ([]byte, error) {
 	return data[:len(data)-padding], nil
 }
 
-// serializeEncryptedMemo serializes an encrypted memo (simplified version).
-func serializeEncryptedMemo(memo EncryptedMemo) ([]byte, error) {
-	// This is a simplified serialization
-	// In practice, you'd use the proper Steem serializer
-	// For now, we'll use a simple format: from|to|nonce|check|encrypted
-	fromBytes := []byte(memo.From)
-	toBytes := []byte(memo.To)
+// ----------------------------------------------------------------------------
+// nonce
+// ----------------------------------------------------------------------------
 
-	result := make([]byte, 0, len(fromBytes)+len(toBytes)+len(memo.Nonce)+len(memo.Check)+len(memo.Encrypted)+20)
-	result = append(result, byte(len(fromBytes)))
-	result = append(result, fromBytes...)
-	result = append(result, byte(len(toBytes)))
-	result = append(result, toBytes...)
-	result = append(result, byte(len(memo.Nonce)))
-	result = append(result, memo.Nonce...)
-	result = append(result, byte(len(memo.Check)))
-	result = append(result, memo.Check...)
-	result = append(result, memo.Encrypted...)
-	return result, nil
+// UniqueNonce returns a 64-bit nonce composed of the high 32 bits of the
+// current time in milliseconds and 32 random bits, matching steem-js
+// Aes.uniqueNonce() (next branch, PR #531).
+func UniqueNonce() uint64 {
+	now := uint64(time.Now().UnixMilli()) // low 32 bits kept via shift below
+	var randBuf [4]byte
+	if _, err := io.ReadFull(rand.Reader, randBuf[:]); err != nil {
+		// rand.Reader should never fail; fall back to time entropy if it does.
+		now ^= uint64(time.Now().UnixNano())
+		return now
+	}
+	random := uint64(randBuf[0])<<24 | uint64(randBuf[1])<<16 | uint64(randBuf[2])<<8 | uint64(randBuf[3])
+	return (now << 32) | random
 }
 
-// deserializeEncryptedMemo deserializes an encrypted memo (simplified version).
+// ----------------------------------------------------------------------------
+// wire format (de)serialization
+// ----------------------------------------------------------------------------
+
+// pubKeyLen is the length of a compressed secp256k1 public key.
+const pubKeyLen = 33
+
+func serializeEncryptedMemo(m EncryptedMemo) ([]byte, error) {
+	if m.From == nil || m.To == nil {
+		return nil, errors.New("encrypted memo missing from/to public keys")
+	}
+	var buf bytes.Buffer
+	enc := encoder.NewEncoder(&buf)
+
+	// from / to: raw 33-byte compressed public keys
+	if err := enc.WriteBytes(m.From.ToByte()); err != nil {
+		return nil, err
+	}
+	if err := enc.WriteBytes(m.To.ToByte()); err != nil {
+		return nil, err
+	}
+	// nonce: uint64 little-endian
+	if err := enc.EncodeNumber(m.Nonce); err != nil {
+		return nil, err
+	}
+	// check: uint32 little-endian
+	if err := enc.EncodeNumber(m.Check); err != nil {
+		return nil, err
+	}
+	// ciphertext length: unsigned varint (varint32 in steem-js)
+	if err := enc.EncodeUVarint(uint64(len(m.Encrypted))); err != nil {
+		return nil, err
+	}
+	if err := enc.WriteBytes(m.Encrypted); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
 func deserializeEncryptedMemo(data []byte) (EncryptedMemo, error) {
-	// This is a simplified deserialization
-	// In practice, you'd use the proper Steem deserializer
-	if len(data) < 5 {
-		return EncryptedMemo{}, errors.New("data too short")
+	var m EncryptedMemo
+
+	// Minimum: two public keys (33+33) + nonce(8) + check(4) + at least one
+	// varint byte. Reject short / malformed input early.
+	const minLen = pubKeyLen*2 + nonceLen + 4 + 1
+	if len(data) < minLen {
+		return m, errors.Errorf("encrypted memo too short: %d bytes", len(data))
 	}
 
-	offset := 0
-	fromLen := int(data[offset])
-	offset++
-	if offset+fromLen > len(data) {
-		return EncryptedMemo{}, errors.New("invalid from length")
+	off := 0
+	read := func(n int) []byte {
+		b := data[off : off+n]
+		off += n
+		return b
 	}
-	from := string(data[offset : offset+fromLen])
-	offset += fromLen
 
-	toLen := int(data[offset])
-	offset++
-	if offset+toLen > len(data) {
-		return EncryptedMemo{}, errors.New("invalid to length")
+	fromBytes := read(pubKeyLen)
+	toBytes := read(pubKeyLen)
+
+	m.From = &wif.PublicKey{}
+	if err := m.From.FromByte(fromBytes); err != nil {
+		return m, errors.Wrap(err, "failed to parse 'from' public key")
 	}
-	to := string(data[offset : offset+toLen])
-	offset += toLen
-
-	nonceLen := int(data[offset])
-	offset++
-	if offset+nonceLen > len(data) {
-		return EncryptedMemo{}, errors.New("invalid nonce length")
+	m.To = &wif.PublicKey{}
+	if err := m.To.FromByte(toBytes); err != nil {
+		return m, errors.Wrap(err, "failed to parse 'to' public key")
 	}
-	nonce := make([]byte, nonceLen)
-	copy(nonce, data[offset:offset+nonceLen])
-	offset += nonceLen
 
-	checkLen := int(data[offset])
-	offset++
-	if offset+checkLen > len(data) {
-		return EncryptedMemo{}, errors.New("invalid check length")
+	m.Nonce = binary.LittleEndian.Uint64(read(nonceLen))
+	m.Check = binary.LittleEndian.Uint32(read(4))
+
+	length, n := binary.Uvarint(data[off:])
+	if n <= 0 {
+		return m, errors.New("invalid ciphertext length varint")
 	}
-	check := make([]byte, checkLen)
-	copy(check, data[offset:offset+checkLen])
-	offset += checkLen
+	off += n
 
-	encrypted := data[offset:]
-
-	return EncryptedMemo{
-		From:      from,
-		To:        to,
-		Nonce:     nonce,
-		Check:     check,
-		Encrypted: encrypted,
-	}, nil
+	if uint64(len(data)-off) != length {
+		return m, errors.Errorf("ciphertext length %d does not match remaining %d bytes", length, len(data)-off)
+	}
+	m.Encrypted = make([]byte, len(data)-off)
+	copy(m.Encrypted, data[off:])
+	return m, nil
 }
