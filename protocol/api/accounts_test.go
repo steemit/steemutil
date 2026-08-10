@@ -238,9 +238,9 @@ func TestUnmarshal_ExtendedAccount_FullFixture(t *testing.T) {
 		t.Errorf("savings_withdraw_requests: got %d", acct.SavingsWithdrawRequests)
 	}
 
-	// --- typed Manabar: current_mana is a string, last_update_time a number ---
-	if acct.VotingManabar.CurrentMana != "5640467421072" {
-		t.Errorf("voting_manabar.current_mana: got %q", acct.VotingManabar.CurrentMana)
+	// --- Manabar: current_mana is json.RawMessage (string or number on chain) ---
+	if string(acct.VotingManabar.CurrentMana) != `"5640467421072"` {
+		t.Errorf("voting_manabar.current_mana: got %s", acct.VotingManabar.CurrentMana)
 	}
 	if acct.VotingManabar.LastUpdateTime != 1699768485 {
 		t.Errorf("voting_manabar.last_update_time: got %d", acct.VotingManabar.LastUpdateTime)

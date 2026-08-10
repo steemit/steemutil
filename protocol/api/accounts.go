@@ -105,8 +105,8 @@ type Authority struct {
 // current_mana is a share_type (int64) and serializes as a JSON string because
 // it can be large; last_update_time is a unix-epoch uint32 emitted as a number.
 type Manabar struct {
-	CurrentMana    string `json:"current_mana"`
-	LastUpdateTime uint32 `json:"last_update_time"`
+	CurrentMana    json.RawMessage `json:"current_mana"`
+	LastUpdateTime uint32           `json:"last_update_time"`
 }
 
 // ExtendedAccount models a full condenser_api.get_accounts response entry,
