@@ -165,3 +165,146 @@ func TestAccountAuthEntry_UnmarshalMalformed(t *testing.T) {
 		})
 	}
 }
+
+// TestUnmarshal_ExtendedAccount_FullFixture decodes a real
+// condenser_api.get_accounts(["steemit"]) response entry (all 65 on-chain
+// keys) into ExtendedAccount and asserts representative fields from every
+// group: the original conveyor subset, scalar string/bool/int fields, the typed
+// Manabar, the RawMessage share_type group, the MIXED proxied_vsf_votes array,
+// and the empty extended_account collections.
+//
+// The fixture is a verbatim public on-chain snapshot; it pins the full wire
+// shape so any future field/type drift is caught here rather than downstream.
+func TestUnmarshal_ExtendedAccount_FullFixture(t *testing.T) {
+	// 65-key response captured from a live condenser_api.get_accounts call.
+	const src = `{"id":28,"name":"steemit","owner":{"weight_threshold":1,"account_auths":[],"key_auths":[["STM5nqRQyxpAy1NzMk6Ho5cjZbZ2kUV3WTg4ckMSNR7VacHib6nAm",1]]},"active":{"weight_threshold":1,"account_auths":[],"key_auths":[["STM8mXPsLVsWBeYNun45r3pHGq3iyASN6FS27mXXjXdjrVEW5f4Ad",1]]},"posting":{"weight_threshold":1,"account_auths":[],"key_auths":[["STM6P961NP2LyqMhUyi1XraJ4gsEGwkwWy3x4oH74H4y9aC1KLEbC",1]]},"memo_key":"STM8bYJg6FVsNrxLPRpzJf2KPh32ZSjTNJyAgEbgZHsMiWczNcoNi","json_metadata":"","posting_json_metadata":"","proxy":"dev365","last_owner_update":"2020-03-21T11:53:12","last_account_update":"2020-03-21T11:53:12","created":"2016-03-24T17:00:21","mined":true,"recovery_account":"steem","reset_account":"null","last_account_recovery":"1970-01-01T00:00:00","comment_count":0,"lifetime_vote_count":0,"post_count":1,"can_vote":true,"voting_manabar":{"current_mana":"5640467421072","last_update_time":1699768485},"downvote_manabar":{"current_mana":"1410116855268","last_update_time":1699768485},"voting_power":0,"balance":"398420.141 STEEM","savings_balance":"0.000 STEEM","sbd_balance":"153099.071 SBD","sbd_seconds":"15326354649","sbd_seconds_last_update":"2023-11-13T03:39:12","sbd_last_interest_payment":"2023-11-12T05:54:45","savings_sbd_balance":"0.000 SBD","savings_sbd_seconds":"0","savings_sbd_seconds_last_update":"1970-01-01T00:00:00","savings_sbd_last_interest_payment":"1970-01-01T00:00:00","savings_withdraw_requests":0,"reward_sbd_balance":"0.000 SBD","reward_steem_balance":"0.000 STEEM","reward_vesting_balance":"0.000000 VESTS","reward_vesting_steem":"0.000 STEEM","curation_rewards":2812964,"posting_rewards":3548,"vesting_shares":"5640467.421072 VESTS","delegated_vesting_shares":"0.000000 VESTS","received_vesting_shares":"0.000000 VESTS","vesting_withdraw_rate":"0.000000 VESTS","next_vesting_withdrawal":"1969-12-31T23:59:59","withdrawn":"57269412490896164","to_withdraw":"57269412490896164","withdraw_routes":0,"proxied_vsf_votes":["452574069424",0,0,0],"witnesses_voted_for":0,"last_post":"2016-03-30T18:30:18","last_root_post":"2016-03-30T18:30:18","last_vote_time":"2020-03-27T08:46:24","post_bandwidth":0,"pending_claimed_accounts":0,"vesting_balance":"0.000 STEEM","reputation":"12944616889","transfer_history":[],"market_history":[],"post_history":[],"vote_history":[],"other_history":[],"witness_votes":[],"tags_usage":[],"guest_bloggers":[]}`
+
+	var acct ExtendedAccount
+	if err := json.Unmarshal([]byte(src), &acct); err != nil {
+		t.Fatalf("unmarshal full fixture failed: %v", err)
+	}
+
+	// --- original conveyor-facing subset (must keep working) ---
+	if acct.Name != "steemit" {
+		t.Errorf("name: got %q", acct.Name)
+	}
+	if acct.Created != "2016-03-24T17:00:21" {
+		t.Errorf("created: got %q", acct.Created)
+	}
+	if acct.Balance != "398420.141 STEEM" {
+		t.Errorf("balance: got %q", acct.Balance)
+	}
+	if string(acct.Reputation) != `"12944616889"` {
+		t.Errorf("reputation raw: got %q", string(acct.Reputation))
+	}
+	if acct.VotingPower != 0 {
+		t.Errorf("voting_power: got %d", acct.VotingPower)
+	}
+	if acct.Owner.WeightThreshold != 1 || len(acct.Owner.KeyAuths) != 1 || acct.Owner.KeyAuths[0].Weight != 1 {
+		t.Errorf("owner authority wrong: %+v", acct.Owner)
+	}
+
+	// --- newly added scalar string fields (assets / timestamps / names) ---
+	if acct.Proxy != "dev365" {
+		t.Errorf("proxy: got %q", acct.Proxy)
+	}
+	if acct.RewardSBDBalance != "0.000 SBD" {
+		t.Errorf("reward_sbd_balance: got %q", acct.RewardSBDBalance)
+	}
+	if acct.RewardVestingSteem != "0.000 STEEM" {
+		t.Errorf("reward_vesting_steem: got %q", acct.RewardVestingSteem)
+	}
+	if acct.MemoKey != "STM8bYJg6FVsNrxLPRpzJf2KPh32ZSjTNJyAgEbgZHsMiWczNcoNi" {
+		t.Errorf("memo_key: got %q", acct.MemoKey)
+	}
+	if acct.VestingShares != "5640467.421072 VESTS" {
+		t.Errorf("vesting_shares: got %q", acct.VestingShares)
+	}
+
+	// --- newly added scalar bool/int fields ---
+	if acct.ID != 28 {
+		t.Errorf("id: got %d", acct.ID)
+	}
+	if !acct.Mined {
+		t.Errorf("mined: want true")
+	}
+	if !acct.CanVote {
+		t.Errorf("can_vote: want true")
+	}
+	if acct.PostCount != 1 {
+		t.Errorf("post_count: got %d", acct.PostCount)
+	}
+	if acct.SavingsWithdrawRequests != 0 {
+		t.Errorf("savings_withdraw_requests: got %d", acct.SavingsWithdrawRequests)
+	}
+
+	// --- typed Manabar: current_mana is a string, last_update_time a number ---
+	if acct.VotingManabar.CurrentMana != "5640467421072" {
+		t.Errorf("voting_manabar.current_mana: got %q", acct.VotingManabar.CurrentMana)
+	}
+	if acct.VotingManabar.LastUpdateTime != 1699768485 {
+		t.Errorf("voting_manabar.last_update_time: got %d", acct.VotingManabar.LastUpdateTime)
+	}
+	if acct.DownvoteManabar.LastUpdateTime != 1699768485 {
+		t.Errorf("downvote_manabar.last_update_time: got %d", acct.DownvoteManabar.LastUpdateTime)
+	}
+
+	// --- RawMessage share_type group: captured verbatim regardless of form.
+	// curation_rewards/posting_rewards here are JSON numbers; withdrawn/to_withdraw
+	// are JSON strings — both must decode without error and round-trip bytes. ---
+	if string(acct.Withdrawn) != `"57269412490896164"` {
+		t.Errorf("withdrawn raw: got %q", string(acct.Withdrawn))
+	}
+	if string(acct.ToWithdraw) != `"57269412490896164"` {
+		t.Errorf("to_withdraw raw: got %q", string(acct.ToWithdraw))
+	}
+	if string(acct.CurationRewards) != "2812964" {
+		t.Errorf("curation_rewards raw: got %q", string(acct.CurationRewards))
+	}
+	if string(acct.PostingRewards) != "3548" {
+		t.Errorf("posting_rewards raw: got %q", string(acct.PostingRewards))
+	}
+	if string(acct.PostBandwidth) != "0" {
+		t.Errorf("post_bandwidth raw: got %q", string(acct.PostBandwidth))
+	}
+
+	// --- proxied_vsf_votes: MIXED ["452574069424",0,0,0] — the headline reason
+	// this field is []json.RawMessage rather than a typed slice. ---
+	if len(acct.ProxiedVSFVotes) != 4 {
+		t.Fatalf("proxied_vsf_votes len: got %d", len(acct.ProxiedVSFVotes))
+	}
+	if want := `"452574069424"`; string(acct.ProxiedVSFVotes[0]) != want {
+		t.Errorf("proxied_vsf_votes[0]: got %q want %q", string(acct.ProxiedVSFVotes[0]), want)
+	}
+	if want := "0"; string(acct.ProxiedVSFVotes[1]) != want {
+		t.Errorf("proxied_vsf_votes[1]: got %q want %q", string(acct.ProxiedVSFVotes[1]), want)
+	}
+
+	// --- extended_account collections: currently empty [], captured raw. ---
+	for _, tc := range []struct {
+		name string
+		raw  json.RawMessage
+	}{
+		{"transfer_history", acct.TransferHistory},
+		{"market_history", acct.MarketHistory},
+		{"post_history", acct.PostHistory},
+		{"vote_history", acct.VoteHistory},
+		{"other_history", acct.OtherHistory},
+		{"tags_usage", acct.TagsUsage},
+		{"guest_bloggers", acct.GuestBloggers},
+	} {
+		if string(tc.raw) != "[]" {
+			t.Errorf("%s: got %q want []", tc.name, string(tc.raw))
+		}
+	}
+
+	// round-trip: re-marshaling the typed Manabar must reproduce the wire shape.
+	vm, err := json.Marshal(acct.VotingManabar)
+	if err != nil {
+		t.Fatalf("marshal voting_manabar: %v", err)
+	}
+	const wantVM = `{"current_mana":"5640467421072","last_update_time":1699768485}`
+	if string(vm) != wantVM {
+		t.Errorf("voting_manabar marshal: got %s want %s", string(vm), wantVM)
+	}
+}
