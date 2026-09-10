@@ -15,10 +15,20 @@ import (
 type ClientOption func(*JsonRpc)
 
 // WithHTTPClient sets the http.Client used to send requests, giving callers
-// control over timeouts, transport, and connection pooling. When unset, each
-// Send uses a client with a 30s timeout (the pre-option behavior).
+// control over timeouts, transport, and connection pooling. A nil client is
+// a no-op: requests then use the legacy fallback — a fresh client with a 30s
+// timeout per call, with no connection-reuse guarantees. Inject a client
+// when you need pooling or a custom transport, e.g.:
+//
+//	tr := http.DefaultTransport.(*http.Transport).Clone()
+//	tr.MaxIdleConnsPerHost = 16
+//	client := jsonrpc2.NewClientWithOptions(url, jsonrpc2.WithHTTPClient(
+//		&http.Client{Timeout: 15 * time.Second, Transport: tr}))
 func WithHTTPClient(c *http.Client) ClientOption {
 	return func(j *JsonRpc) {
+		if c == nil {
+			return
+		}
 		j.client = c
 	}
 }
@@ -53,6 +63,10 @@ func (j *JsonRpc) SendWithContext(ctx context.Context) (*api.RpcResultData, erro
 	req.Header.Set("Content-Type", "application/json")
 	client := j.client
 	if client == nil {
+		// Legacy fallback (pre-option behavior): a fresh 30s-timeout client
+		// per call. Note this gives no connection-reuse guarantees across
+		// calls — inject a client via WithHTTPClient when you need pooling
+		// or a custom transport.
 		client = &http.Client{
 			Timeout: 30 * time.Second,
 		}

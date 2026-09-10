@@ -81,6 +81,44 @@ func main() {
 }
 ```
 
+### JSON-RPC Client Options (jsonrpc2)
+
+By default `jsonrpc2.NewClient` sends each request through a fresh
+`http.Client` with a 30s timeout, and `Send()` cannot be canceled. Two
+capabilities let callers take control:
+
+```go
+import (
+    "net/http"
+    "time"
+
+    "github.com/steemit/steemutil/jsonrpc2"
+)
+
+// Custom transport + timeout, reused across requests (connection pooling).
+tr := http.DefaultTransport.(*http.Transport).Clone()
+tr.MaxIdleConnsPerHost = 16
+
+client := jsonrpc2.NewClientWithOptions("https://api.steemit.com",
+    jsonrpc2.WithHTTPClient(&http.Client{
+        Timeout:   15 * time.Second,
+        Transport: tr,
+    }),
+)
+_ = client.BuildSendData("condenser_api.get_block", []any{20000000})
+
+// Context-aware send: cancellation aborts the in-flight HTTP request.
+res, err := client.SendWithContext(ctx)
+```
+
+Notes:
+
+- `WithHTTPClient(nil)` is a no-op — the legacy per-call 30s-timeout client
+  fallback applies (no connection-reuse guarantees; inject a client when you
+  need pooling or a custom transport).
+- `Send()` remains and delegates to `SendWithContext(context.Background())`;
+  existing callers are unaffected.
+
 ### Transaction Operations
 
 ```go

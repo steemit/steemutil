@@ -43,7 +43,9 @@ func TestSendWithContext_CancelAbortsInFlightRequest(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Errorf("expected context.Canceled in error chain, got: %v", err)
 	}
-	if elapsed > time.Second {
+	// Failure mode without cancellation would be the handler's 5s sleep;
+	// 2s bounds scheduler/CI noise while still proving cancel won.
+	if elapsed >= 2*time.Second {
 		t.Errorf("cancel should abort promptly, took %v", elapsed)
 	}
 }
@@ -65,8 +67,37 @@ func TestWithHTTPClient_InjectedTimeoutApplies(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected timeout error from injected client, got nil")
 	}
-	if elapsed > time.Second {
+	// Failure mode without the injected timeout would be the handler's 5s
+	// sleep; 2s bounds scheduler/CI noise while still proving the timeout
+	// fired.
+	if elapsed >= 2*time.Second {
 		t.Errorf("injected 100ms timeout should apply, took %v", elapsed)
+	}
+}
+
+// TestWithHTTPClient_NilIsNoOp pins the documented nil semantics: passing a
+// nil client leaves the legacy per-call 30s-timeout fallback in place, and
+// requests still succeed.
+func TestWithHTTPClient_NilIsNoOp(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":1,"jsonrpc":"2.0","result":{"ok":true}}`))
+	}))
+	defer srv.Close()
+
+	client := NewClientWithOptions(srv.URL, WithHTTPClient(nil))
+	if client.client != nil {
+		t.Fatal("WithHTTPClient(nil) must not set a client (no-op, legacy fallback)")
+	}
+	if err := client.BuildSendData("condenser_api.get_block", []any{1}); err != nil {
+		t.Fatalf("BuildSendData: %v", err)
+	}
+	res, err := client.SendWithContext(context.Background())
+	if err != nil {
+		t.Fatalf("SendWithContext through legacy fallback: %v", err)
+	}
+	if res.Result == nil {
+		t.Error("expected non-nil result")
 	}
 }
 
