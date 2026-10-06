@@ -156,3 +156,16 @@ func (op *operationTuple) UnmarshalJSON(data []byte) error {
 	op.Data = opData
 	return nil
 }
+
+// OperationTemplateByName returns a fresh zero-value operation data object for
+// the given operation name (e.g. "transfer"), ready for json.Unmarshal. The
+// second return is false when the operation is not modeled in this package.
+func OperationTemplateByName(name string) (Operation, bool) {
+	template, ok := dataObjects[OpType(name)]
+	if !ok {
+		return nil, false
+	}
+	return reflect.New(
+		reflect.Indirect(reflect.ValueOf(template)).Type(),
+	).Interface().(Operation), true
+}

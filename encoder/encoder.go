@@ -290,32 +290,57 @@ func (encoder *Encoder) encodeStruct(rv reflect.Value) error {
 					return errors.Wrapf(err, "failed to encode optional presence for field %s", fieldType.Name)
 				}
 			}
-			fieldValue = field.Elem().Interface()
+			// Do NOT dereference the pointer into fieldValue here.
+			// protocol.Time / UInt* / Asset implement MarshalTransaction on
+			// their POINTER receiver, so Encode() must see the pointer to
+			// find the marshaller; the bare value's method set does not
+			// contain it and would fall through to reflection (Time was
+			// silently encoded as an empty struct). encodeByReflection
+			// dereferences only after re-checking the interface.
 		}
 
-		// Check if this is an asset field (Amount, AmountToSell, MinToReceive, etc.)
-		// and the value is a string that looks like an asset (e.g., "0.001 STEEM")
+		// Asset-typed string fields.
+		//
+		// The canonical dispatch is the struct tag `steem:"asset"`: when
+		// present the field is ALWAYS parsed as an asset and a parse failure
+		// is an error. The legacy field-name list below is kept only as a
+		// compatibility fallback for structs that have not been tagged yet;
+		// new operations must use the tag.
+		//
+		// The name list previously missed fields such as DailyPay
+		// (create_proposal.daily_pay), which were then silently encoded as
+		// plain strings and produced signatures the chain rejects.
 		if field.Kind() == reflect.String {
+			taggedAsset := fieldType.Tag.Get("steem") == "asset"
 			fieldName := fieldType.Name
-			if fieldName == "Amount" || fieldName == "AmountToSell" || fieldName == "MinToReceive" ||
+			nameListed := fieldName == "Amount" || fieldName == "AmountToSell" || fieldName == "MinToReceive" ||
 				fieldName == "VestingShares" || fieldName == "SBDAmount" || fieldName == "SteemAmount" ||
 				fieldName == "RewardSteem" || fieldName == "RewardSBD" || fieldName == "RewardVests" ||
 				fieldName == "Fee" || fieldName == "Delegation" ||
 				fieldName == "AccountCreationFee" || fieldName == "Base" || fieldName == "Quote" ||
-				fieldName == "MaxAcceptedPayout" {
+				fieldName == "MaxAcceptedPayout" || fieldName == "DailyPay" ||
+				fieldName == "AmountIn" || fieldName == "AmountOut" ||
+				fieldName == "Payout" || fieldName == "Interest" ||
+				fieldName == "CurrentPays" || fieldName == "OpenPays"
+			if taggedAsset || nameListed {
 				assetStr := field.String()
-				// Check if it looks like an asset string (contains space and has numeric part)
-				if strings.Contains(assetStr, " ") && len(strings.Split(assetStr, " ")) == 2 {
-					// Try to parse as asset
-					amount, precision, symbol, err := encoder.parseAssetString(assetStr)
-					if err == nil {
-						// Successfully parsed as asset, encode it
-						if err := encoder.encodeAsset(amount, precision, symbol); err != nil {
-							return errors.Wrapf(err, "failed to encode asset field %s", fieldType.Name)
-						}
+				amount, precision, symbol, err := encoder.parseAssetString(assetStr)
+				if err != nil {
+					if taggedAsset {
+						return errors.Wrapf(err, "failed to parse asset field %s (value %q)", fieldType.Name, assetStr)
+					}
+					// Untagged fallback: only treat the value as an asset when
+					// it actually looks like one, so legacy string fields are
+					// not broken by a stricter parse.
+					if !strings.Contains(assetStr, " ") || len(strings.Split(assetStr, " ")) != 2 {
 						continue
 					}
+					return errors.Wrapf(err, "failed to encode asset field %s", fieldType.Name)
 				}
+				if err := encoder.encodeAsset(amount, precision, symbol); err != nil {
+					return errors.Wrapf(err, "failed to encode asset field %s", fieldType.Name)
+				}
+				continue
 			}
 		}
 

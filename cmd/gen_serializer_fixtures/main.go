@@ -117,9 +117,9 @@ func main() {
 		"account_create_with_delegation_basic",
 		"account_create_with_delegation",
 		&protocol.AccountCreateWithDelegationOperation{
-			Fee:        "0.000 STEEM",
-			Delegation: "0.000000 VESTS",
-			Creator:    "initminer",
+			Fee:            "0.000 STEEM",
+			Delegation:     "0.000000 VESTS",
+			Creator:        "initminer",
 			NewAccountName: "alice",
 			Owner: &protocol.Authority{
 				WeightThreshold: 1,
@@ -161,8 +161,8 @@ func main() {
 			OrderID:      123,
 			AmountToSell: "1.000 STEEM",
 			ExchangeRate: struct {
-				Base  string `json:"base"`
-				Quote string `json:"quote"`
+				Base  string `json:"base" steem:"asset"`
+				Quote string `json:"quote" steem:"asset"`
 			}{
 				Base:  "1.000 STEEM",
 				Quote: "1.000 SBD",
@@ -177,14 +177,14 @@ func main() {
 		"escrow_transfer_basic",
 		"escrow_transfer",
 		&protocol.EscrowTransferOperation{
-			From:        "alice",
-			To:          "bob",
-			SBDAmount:   "1.000 SBD",
-			SteemAmount: "0.000 STEEM",
-			EscrowID:    1,
-			Agent:       "carol",
-			Fee:         "0.001 STEEM",
-			JsonMeta:    "",
+			From:                 "alice",
+			To:                   "bob",
+			SBDAmount:            "1.000 SBD",
+			SteemAmount:          "0.000 STEEM",
+			EscrowID:             1,
+			Agent:                "carol",
+			Fee:                  "0.001 STEEM",
+			JsonMeta:             "",
 			RatificationDeadline: mustTime("2016-03-24T16:10:00Z"),
 			EscrowExpiration:     mustTime("2016-03-25T16:10:00Z"),
 		},
@@ -308,4 +308,3 @@ func main() {
 		fmt.Fprintf(os.Stderr, "wrote fixture %s\n", f.Name)
 	}
 }
-

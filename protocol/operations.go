@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/pkg/errors"
 	"github.com/steemit/steemutil/encoder"
+	"github.com/steemit/steemutil/wif"
 )
 
 // FC_REFLECT( steemit::chain::report_over_production_operation,
@@ -36,7 +38,7 @@ func (op *ReportOverProductionOperation) Data() any {
 type ConvertOperation struct {
 	Owner     string `json:"owner"`
 	RequestID uint32 `json:"requestid"`
-	Amount    string `json:"amount"`
+	Amount    string `json:"amount" steem:"asset"`
 }
 
 func (op *ConvertOperation) Type() OpType {
@@ -54,8 +56,8 @@ func (op *ConvertOperation) Data() any {
 type FeedPublishOperation struct {
 	Publisher    string `json:"publisher"`
 	ExchangeRate struct {
-		Base  string `json:"base"`
-		Quote string `json:"quote"`
+		Base  string `json:"base" steem:"asset"`
+		Quote string `json:"quote" steem:"asset"`
 	} `json:"exchange_rate"`
 }
 
@@ -72,12 +74,61 @@ func (op *FeedPublishOperation) Data() any {
 //             (input)
 //             (signature)
 //             (work) )
-
+//
+// Wire-format note (why pow diverges from steem-js): the C++ reference
+// (libraries/protocol/include/steem/protocol/steem_operations.hpp,
+// FC_REFLECT(steemit::chain::pow, ...)) defines worker as public_key_type
+// (33 raw bytes) and input/signature/work as fixed-size byte arrays (32/65/32
+// bytes). steem-js's serializer instead encodes all four inner fields as
+// strings (and its pow_operation nonce carries an optional presence byte).
+// The two are mutually incompatible; this package follows the C++ chain
+// reference, so cross-language serializer fixtures skip the pow op (see
+// transaction/serializer_crosslang_test.go). pow is a long-deactivated
+// mining operation, so no live path is affected by this divergence; aligning
+// steem-js would be a separate change in that repository.
 type POW struct {
-	Worker    string `json:"worker"`
-	Input     string `json:"input"`
-	Signature string `json:"signature"`
-	Work      string `json:"work"`
+	Worker    string `json:"worker" steem:"pubkey"`
+	Input     string `json:"input" steem:"hexbytes"`
+	Signature string `json:"signature" steem:"hexbytes65"`
+	Work      string `json:"work" steem:"hexbytes32"`
+}
+
+// MarshalTransaction encodes pow per C++ FC_REFLECT(pow, (worker)(input)(signature)(work)):
+// worker as 33-byte public_key_type, input/work as 32 raw bytes, signature as 65 raw bytes.
+// See the wire-format note on POW for why this intentionally differs from
+// steem-js (which encodes the same fields as strings).
+func (p *POW) MarshalTransaction(encoderObj *encoder.Encoder) error {
+	if err := encoderObj.Encode(p.Worker); err != nil {
+		return err
+	}
+	input, err := hex.DecodeString(p.Input)
+	if err != nil {
+		return errors.Wrapf(err, "pow.input is not valid hex")
+	}
+	if len(input) != 32 {
+		return errors.Errorf("pow.input must be 32 bytes, got %d", len(input))
+	}
+	if err := encoderObj.WriteBytes(input); err != nil {
+		return err
+	}
+	sig, err := hex.DecodeString(p.Signature)
+	if err != nil {
+		return errors.Wrapf(err, "pow.signature is not valid hex")
+	}
+	if len(sig) != 65 {
+		return errors.Errorf("pow.signature must be 65 bytes, got %d", len(sig))
+	}
+	if err := encoderObj.WriteBytes(sig); err != nil {
+		return err
+	}
+	work, err := hex.DecodeString(p.Work)
+	if err != nil {
+		return errors.Wrapf(err, "pow.work is not valid hex")
+	}
+	if len(work) != 32 {
+		return errors.Errorf("pow.work must be 32 bytes, got %d", len(work))
+	}
+	return encoderObj.WriteBytes(work)
 }
 
 // FC_REFLECT( steemit::chain::chain_properties,
@@ -94,7 +145,7 @@ type AssetObject struct {
 }
 
 type ChainProperties struct {
-	AccountCreationFee string `json:"account_creation_fee"`
+	AccountCreationFee string `json:"account_creation_fee" steem:"asset"`
 	MaximumBlockSize   uint32 `json:"maximum_block_size"`
 	SBDInterestRate    uint16 `json:"sbd_interest_rate"`
 }
@@ -213,11 +264,14 @@ func formatAssetFromObject(amount, nai string, precision uint8) string {
 //             (props) )
 
 type POWOperation struct {
-	WorkerAccount string           `json:"worker_account"`
-	BlockID       string           `json:"block_id"`
-	Nonce         *UInt64          `json:"nonce"`
-	Work          *POW             `json:"work"`
-	Props         *ChainProperties `json:"props"`
+	WorkerAccount string `json:"worker_account"`
+	BlockID       string `json:"block_id"`
+	// Nonce is a plain uint64 on the wire (C++ FC_REFLECT(pow_operation,
+	// (worker_account)(block_id)(nonce)(work)(props))); the Go pointer is
+	// nil-safety only — no optional presence byte is emitted.
+	Nonce *UInt64          `json:"nonce"`
+	Work  *POW             `json:"work"`
+	Props *ChainProperties `json:"props"`
 }
 
 func (op *POWOperation) Type() OpType {
@@ -239,7 +293,7 @@ func (op *POWOperation) Data() any {
 //             (json_metadata) )
 
 type AccountCreateOperation struct {
-	Fee            string     `json:"fee"`
+	Fee            string     `json:"fee" steem:"asset"`
 	Creator        string     `json:"creator"`
 	NewAccountName string     `json:"new_account_name"`
 	Owner          *Authority `json:"owner"`
@@ -291,7 +345,7 @@ func (op *AccountUpdateOperation) Data() any {
 type TransferOperation struct {
 	From   string `json:"from"`
 	To     string `json:"to"`
-	Amount string `json:"amount"`
+	Amount string `json:"amount" steem:"asset"`
 	Memo   string `json:"memo"`
 }
 
@@ -311,7 +365,7 @@ func (op *TransferOperation) Data() any {
 type TransferToVestingOperation struct {
 	From   string `json:"from"`
 	To     string `json:"to"`
-	Amount string `json:"amount"`
+	Amount string `json:"amount" steem:"asset"`
 }
 
 func (op *TransferToVestingOperation) Type() OpType {
@@ -328,7 +382,7 @@ func (op *TransferToVestingOperation) Data() any {
 
 type WithdrawVestingOperation struct {
 	Account       string `json:"account"`
-	VestingShares string `json:"vesting_shares"`
+	VestingShares string `json:"vesting_shares" steem:"asset"`
 }
 
 func (op *WithdrawVestingOperation) Type() OpType {
@@ -482,8 +536,8 @@ func (op *VoteOperation) MarshalTransaction(encoderObj *encoder.Encoder) error {
 type LimitOrderCreateOperation struct {
 	Owner        string `json:"owner"`
 	OrderID      uint32 `json:"orderid"`
-	AmountToSell string `json:"amount_to_sell"`
-	MinToReceive string `json:"min_to_receive"`
+	AmountToSell string `json:"amount_to_sell" steem:"asset"`
+	MinToReceive string `json:"min_to_receive" steem:"asset"`
 	FillOrKill   bool   `json:"fill_or_kill"`
 	Expiration   *Time  `json:"expiration"`
 }
@@ -540,12 +594,12 @@ func (op *DeleteCommentOperation) Data() any {
 //             (extensions) )
 
 type CommentOptionsOperation struct {
-	Author               string                     `json:"author"`
-	Permlink             string                     `json:"permlink"`
-	MaxAcceptedPayout    string                     `json:"max_accepted_payout"`
-	PercentSteemDollars  uint16                     `json:"percent_steem_dollars"`
-	AllowVotes           bool                       `json:"allow_votes"`
-	AllowCurationRewards bool                       `json:"allow_curation_rewards"`
+	Author               string                   `json:"author"`
+	Permlink             string                   `json:"permlink"`
+	MaxAcceptedPayout    string                   `json:"max_accepted_payout" steem:"asset"`
+	PercentSteemDollars  uint16                   `json:"percent_steem_dollars"`
+	AllowVotes           bool                     `json:"allow_votes"`
+	AllowCurationRewards bool                     `json:"allow_curation_rewards"`
 	Extensions           CommentOptionsExtensions `json:"extensions"`
 }
 
@@ -660,6 +714,77 @@ type Authority struct {
 	WeightThreshold uint32         `json:"weight_threshold"`
 }
 
+// MarshalTransaction encodes authority per C++ FC_REFLECT(steem::protocol::authority,
+// (weight_threshold)(account_auths)(key_auths)):
+//   - weight_threshold: uint32
+//   - account_auths: flat_map<string, uint16> — sorted by key, length-prefixed
+//   - key_auths: flat_map<public_key_type, uint16> — keys as 33-byte binary,
+//     sorted, length-prefixed
+//
+// The Go struct declares fields in JSON alphabetical order for API
+// compatibility; the wire order above is what the chain requires.
+func (a *Authority) MarshalTransaction(encoderObj *encoder.Encoder) error {
+	if a == nil {
+		return errors.New("cannot marshal nil authority")
+	}
+	if err := encoderObj.EncodeNumber(a.WeightThreshold); err != nil {
+		return errors.Wrap(err, "failed to encode authority weight_threshold")
+	}
+
+	accountKeys := make([]string, 0, len(a.AccountAuths))
+	for k := range a.AccountAuths {
+		accountKeys = append(accountKeys, k)
+	}
+	sort.Strings(accountKeys)
+	if err := encoderObj.EncodeUVarint(uint64(len(accountKeys))); err != nil {
+		return errors.Wrap(err, "failed to encode account_auths length")
+	}
+	for _, k := range accountKeys {
+		if err := encoderObj.Encode(k); err != nil {
+			return errors.Wrapf(err, "failed to encode account_auths key %s", k)
+		}
+		if err := encoderObj.EncodeNumber(uint16(a.AccountAuths[k])); err != nil {
+			return errors.Wrapf(err, "failed to encode account_auths weight for %s", k)
+		}
+	}
+
+	keyAuthKeys := make([]string, 0, len(a.KeyAuths))
+	for k := range a.KeyAuths {
+		keyAuthKeys = append(keyAuthKeys, k)
+	}
+	// flat_map key order for public_key_type is the binary 33-byte
+	// representation order, not the STM string order.
+	sort.Slice(keyAuthKeys, func(i, j int) bool {
+		return authorityPubKeyBytes(keyAuthKeys[i]) < authorityPubKeyBytes(keyAuthKeys[j])
+	})
+	if err := encoderObj.EncodeUVarint(uint64(len(keyAuthKeys))); err != nil {
+		return errors.Wrap(err, "failed to encode key_auths length")
+	}
+	for _, k := range keyAuthKeys {
+		pubKey := &wif.PublicKey{}
+		if err := pubKey.FromStr(k); err != nil {
+			return errors.Wrapf(err, "failed to parse key_auths public key %s", k)
+		}
+		if err := encoderObj.WriteBytes(pubKey.ToByte()); err != nil {
+			return errors.Wrapf(err, "failed to encode key_auths public key %s", k)
+		}
+		if err := encoderObj.EncodeNumber(uint16(a.KeyAuths[k])); err != nil {
+			return errors.Wrapf(err, "failed to encode key_auths weight for %s", k)
+		}
+	}
+	return nil
+}
+
+// authorityPubKeyBytes renders the binary form of a STM public key for
+// flat_map ordering comparisons.
+func authorityPubKeyBytes(key string) string {
+	pubKey := &wif.PublicKey{}
+	if err := pubKey.FromStr(key); err != nil {
+		return ""
+	}
+	return string(pubKey.ToByte())
+}
+
 // FC_REFLECT( steemit::chain::witness_update_operation,
 //             (owner)
 //             (url)
@@ -672,7 +797,7 @@ type WitnessUpdateOperation struct {
 	URL             string           `json:"url"`
 	BlockSigningKey string           `json:"block_signing_key" steem:"pubkey"`
 	Props           *ChainProperties `json:"props"`
-	Fee             string           `json:"fee"`
+	Fee             string           `json:"fee" steem:"asset"`
 }
 
 func (op *WitnessUpdateOperation) Type() OpType {
@@ -715,10 +840,10 @@ func (op *SetWithdrawVestingRouteOperation) Data() any {
 type LimitOrderCreate2Operation struct {
 	Owner        string `json:"owner"`
 	OrderID      uint32 `json:"orderid"`
-	AmountToSell string `json:"amount_to_sell"`
+	AmountToSell string `json:"amount_to_sell" steem:"asset"`
 	ExchangeRate struct {
-		Base  string `json:"base"`
-		Quote string `json:"quote"`
+		Base  string `json:"base" steem:"asset"`
+		Quote string `json:"quote" steem:"asset"`
 	} `json:"exchange_rate"`
 	FillOrKill bool  `json:"fill_or_kill"`
 	Expiration *Time `json:"expiration"`
@@ -739,7 +864,7 @@ func (op *LimitOrderCreate2Operation) Data() any {
 
 type ClaimAccountOperation struct {
 	Creator    string `json:"creator"`
-	Fee        string `json:"fee"`
+	Fee        string `json:"fee" steem:"asset"`
 	Extensions []any  `json:"extensions"`
 }
 
@@ -856,11 +981,11 @@ func (op *ChangeRecoveryAccountOperation) Data() any {
 type EscrowTransferOperation struct {
 	From                 string `json:"from"`
 	To                   string `json:"to"`
-	SBDAmount            string `json:"sbd_amount"`
-	SteemAmount          string `json:"steem_amount"`
+	SBDAmount            string `json:"sbd_amount" steem:"asset"`
+	SteemAmount          string `json:"steem_amount" steem:"asset"`
 	EscrowID             uint32 `json:"escrow_id"`
 	Agent                string `json:"agent"`
-	Fee                  string `json:"fee"`
+	Fee                  string `json:"fee" steem:"asset"`
 	JsonMeta             string `json:"json_meta"`
 	RatificationDeadline *Time  `json:"ratification_deadline"`
 	EscrowExpiration     *Time  `json:"escrow_expiration"`
@@ -914,8 +1039,8 @@ type EscrowReleaseOperation struct {
 	Who         string `json:"who"`
 	Receiver    string `json:"receiver"`
 	EscrowID    uint32 `json:"escrow_id"`
-	SBDAmount   string `json:"sbd_amount"`
-	SteemAmount string `json:"steem_amount"`
+	SBDAmount   string `json:"sbd_amount" steem:"asset"`
+	SteemAmount string `json:"steem_amount" steem:"asset"`
 }
 
 func (op *EscrowReleaseOperation) Type() OpType {
@@ -977,7 +1102,7 @@ func (op *POW2Operation) Data() any {
 type TransferToSavingsOperation struct {
 	From   string `json:"from"`
 	To     string `json:"to"`
-	Amount string `json:"amount"`
+	Amount string `json:"amount" steem:"asset"`
 	Memo   string `json:"memo"`
 }
 
@@ -1000,7 +1125,7 @@ type TransferFromSavingsOperation struct {
 	From      string `json:"from"`
 	RequestID uint32 `json:"request_id"`
 	To        string `json:"to"`
-	Amount    string `json:"amount"`
+	Amount    string `json:"amount" steem:"asset"`
 	Memo      string `json:"memo"`
 }
 
@@ -1039,7 +1164,13 @@ type CustomBinaryOperation struct {
 }
 
 // MarshalTransaction encodes id as string, then data as length-prefixed raw bytes (DataBytes is hex string).
+// The operation type code is written first, matching the generic operation
+// encoding path (steem::protocol::custom_binary_operation op id 35 in the
+// operation static_variant) — without it the transaction digest is wrong.
 func (op *CustomBinaryOperation) MarshalTransaction(encoderObj *encoder.Encoder) error {
+	if err := encoderObj.EncodeUVarint(uint64(op.Type().Code())); err != nil {
+		return errors.Wrap(err, "failed to encode operation type code")
+	}
 	if err := encoderObj.Encode(op.ID); err != nil {
 		return err
 	}
@@ -1124,9 +1255,9 @@ func (op *SetResetAccountOperation) Data() any {
 
 type ClaimRewardBalanceOperation struct {
 	Account     string `json:"account"`
-	RewardSteem string `json:"reward_steem"`
-	RewardSBD   string `json:"reward_sbd"`
-	RewardVests string `json:"reward_vests"`
+	RewardSteem string `json:"reward_steem" steem:"asset"`
+	RewardSBD   string `json:"reward_sbd" steem:"asset"`
+	RewardVests string `json:"reward_vests" steem:"asset"`
 }
 
 func (op *ClaimRewardBalanceOperation) Type() OpType {
@@ -1145,7 +1276,7 @@ func (op *ClaimRewardBalanceOperation) Data() any {
 type DelegateVestingSharesOperation struct {
 	Delegator     string `json:"delegator"`
 	Delegatee     string `json:"delegatee"`
-	VestingShares string `json:"vesting_shares"`
+	VestingShares string `json:"vesting_shares" steem:"asset"`
 }
 
 func (op *DelegateVestingSharesOperation) Type() OpType {
@@ -1169,8 +1300,8 @@ func (op *DelegateVestingSharesOperation) Data() any {
 //             (extensions) )
 
 type AccountCreateWithDelegationOperation struct {
-	Fee            string     `json:"fee"`
-	Delegation     string     `json:"delegation"`
+	Fee            string     `json:"fee" steem:"asset"`
+	Delegation     string     `json:"delegation" steem:"asset"`
 	Creator        string     `json:"creator"`
 	NewAccountName string     `json:"new_account_name"`
 	Owner          *Authority `json:"owner"`
@@ -1252,7 +1383,7 @@ type CreateProposalOperation struct {
 	Receiver   string `json:"receiver"`
 	StartDate  *Time  `json:"start_date"`
 	EndDate    *Time  `json:"end_date"`
-	DailyPay   string `json:"daily_pay"`
+	DailyPay   string `json:"daily_pay" steem:"asset"`
 	Subject    string `json:"subject"`
 	Permlink   string `json:"permlink"`
 	Extensions []any  `json:"extensions"`
@@ -1357,8 +1488,8 @@ func (op *Vote2Operation) Data() any {
 type FillConvertRequestOperation struct {
 	Owner     string `json:"owner"`
 	RequestID uint32 `json:"requestid"`
-	AmountIn  string `json:"amount_in"`
-	AmountOut string `json:"amount_out"`
+	AmountIn  string `json:"amount_in" steem:"asset"`
+	AmountOut string `json:"amount_out" steem:"asset"`
 }
 
 func (op *FillConvertRequestOperation) Type() OpType {
@@ -1377,7 +1508,7 @@ func (op *FillConvertRequestOperation) Data() any {
 type CommentRewardOperation struct {
 	Author   string `json:"author"`
 	Permlink string `json:"permlink"`
-	Payout   string `json:"payout"`
+	Payout   string `json:"payout" steem:"asset"`
 }
 
 func (op *CommentRewardOperation) Type() OpType {
@@ -1394,7 +1525,7 @@ func (op *CommentRewardOperation) Data() any {
 
 type LiquidityRewardOperation struct {
 	Owner  string `json:"owner"`
-	Payout string `json:"payout"`
+	Payout string `json:"payout" steem:"asset"`
 }
 
 func (op *LiquidityRewardOperation) Type() OpType {
@@ -1411,7 +1542,7 @@ func (op *LiquidityRewardOperation) Data() any {
 
 type InterestOperation struct {
 	Owner    string `json:"owner"`
-	Interest string `json:"interest"`
+	Interest string `json:"interest" steem:"asset"`
 }
 
 func (op *InterestOperation) Type() OpType {
@@ -1431,8 +1562,8 @@ func (op *InterestOperation) Data() any {
 type FillVestingWithdrawOperation struct {
 	FromAccount string `json:"from_account"`
 	ToAccount   string `json:"to_account"`
-	Withdrawn   string `json:"withdrawn"`
-	Deposited   string `json:"deposited"`
+	Withdrawn   string `json:"withdrawn" steem:"asset"`
+	Deposited   string `json:"deposited" steem:"asset"`
 }
 
 func (op *FillVestingWithdrawOperation) Type() OpType {
@@ -1454,10 +1585,10 @@ func (op *FillVestingWithdrawOperation) Data() any {
 type FillOrderOperation struct {
 	CurrentOwner   string `json:"current_owner"`
 	CurrentOrderID uint32 `json:"current_orderid"`
-	CurrentPays    string `json:"current_pays"`
+	CurrentPays    string `json:"current_pays" steem:"asset"`
 	OpenOwner      string `json:"open_owner"`
 	OpenOrderID    uint32 `json:"open_orderid"`
-	OpenPays       string `json:"open_pays"`
+	OpenPays       string `json:"open_pays" steem:"asset"`
 }
 
 func (op *FillOrderOperation) Type() OpType {
@@ -1478,7 +1609,7 @@ func (op *FillOrderOperation) Data() any {
 type FillTransferFromSavingsOperation struct {
 	From      string `json:"from"`
 	To        string `json:"to"`
-	Amount    string `json:"amount"`
+	Amount    string `json:"amount" steem:"asset"`
 	RequestID uint32 `json:"request_id"`
 	Memo      string `json:"memo"`
 }
