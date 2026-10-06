@@ -70,14 +70,15 @@ func (op *FeedPublishOperation) Data() any {
 }
 
 // FC_REFLECT( steemit::chain::pow,
-//             (worker)
-//             (input)
-//             (signature)
-//             (work) )
+//
+//	(worker)
+//	(input)
+//	(signature)
+//	(work) )
 //
 // Wire-format note (why pow diverges from steem-js): the C++ reference
 // (libraries/protocol/include/steem/protocol/steem_operations.hpp,
-// FC_REFLECT(steemit::chain::pow, ...)) defines worker as public_key_type
+// FC_REFLECT(steem::protocol::pow, ...)) defines worker as public_key_type
 // (33 raw bytes) and input/signature/work as fixed-size byte arrays (32/65/32
 // bytes). steem-js's serializer instead encodes all four inner fields as
 // strings (and its pow_operation nonce carries an optional presence byte).
@@ -86,49 +87,16 @@ func (op *FeedPublishOperation) Data() any {
 // transaction/serializer_crosslang_test.go). pow is a long-deactivated
 // mining operation, so no live path is affected by this divergence; aligning
 // steem-js would be a separate change in that repository.
+//
+// Encoding is fully driven by the struct tags below (pubkey/hexbytes) via
+// encoder.encodeStruct — there is deliberately no hand-written
+// MarshalTransaction, which previously bypassed the tags and encoded worker
+// as a string.
 type POW struct {
 	Worker    string `json:"worker" steem:"pubkey"`
-	Input     string `json:"input" steem:"hexbytes"`
+	Input     string `json:"input" steem:"hexbytes32"`
 	Signature string `json:"signature" steem:"hexbytes65"`
 	Work      string `json:"work" steem:"hexbytes32"`
-}
-
-// MarshalTransaction encodes pow per C++ FC_REFLECT(pow, (worker)(input)(signature)(work)):
-// worker as 33-byte public_key_type, input/work as 32 raw bytes, signature as 65 raw bytes.
-// See the wire-format note on POW for why this intentionally differs from
-// steem-js (which encodes the same fields as strings).
-func (p *POW) MarshalTransaction(encoderObj *encoder.Encoder) error {
-	if err := encoderObj.Encode(p.Worker); err != nil {
-		return err
-	}
-	input, err := hex.DecodeString(p.Input)
-	if err != nil {
-		return errors.Wrapf(err, "pow.input is not valid hex")
-	}
-	if len(input) != 32 {
-		return errors.Errorf("pow.input must be 32 bytes, got %d", len(input))
-	}
-	if err := encoderObj.WriteBytes(input); err != nil {
-		return err
-	}
-	sig, err := hex.DecodeString(p.Signature)
-	if err != nil {
-		return errors.Wrapf(err, "pow.signature is not valid hex")
-	}
-	if len(sig) != 65 {
-		return errors.Errorf("pow.signature must be 65 bytes, got %d", len(sig))
-	}
-	if err := encoderObj.WriteBytes(sig); err != nil {
-		return err
-	}
-	work, err := hex.DecodeString(p.Work)
-	if err != nil {
-		return errors.Wrapf(err, "pow.work is not valid hex")
-	}
-	if len(work) != 32 {
-		return errors.Errorf("pow.work must be 32 bytes, got %d", len(work))
-	}
-	return encoderObj.WriteBytes(work)
 }
 
 // FC_REFLECT( steemit::chain::chain_properties,
@@ -265,7 +233,9 @@ func formatAssetFromObject(amount, nai string, precision uint8) string {
 
 type POWOperation struct {
 	WorkerAccount string `json:"worker_account"`
-	BlockID       string `json:"block_id"`
+	// BlockID is a block_id_type (fc::ripemd160) on the wire: 20 raw bytes
+	// with no length prefix. The Go field carries the usual 40-char hex form.
+	BlockID string `json:"block_id" steem:"hexbytes20"`
 	// Nonce is a plain uint64 on the wire (C++ FC_REFLECT(pow_operation,
 	// (worker_account)(block_id)(nonce)(work)(props))); the Go pointer is
 	// nil-safety only — no optional presence byte is emitted.
@@ -743,46 +713,47 @@ func (a *Authority) MarshalTransaction(encoderObj *encoder.Encoder) error {
 		if err := encoderObj.Encode(k); err != nil {
 			return errors.Wrapf(err, "failed to encode account_auths key %s", k)
 		}
-		if err := encoderObj.EncodeNumber(uint16(a.AccountAuths[k])); err != nil {
+		// weight_type is uint16 on the chain; refuse out-of-range weights
+		// instead of silently truncating.
+		w := a.AccountAuths[k]
+		if w < 0 || w > 0xffff {
+			return errors.Errorf("account_auths weight for %s out of uint16 range: %d", k, w)
+		}
+		if err := encoderObj.EncodeNumber(uint16(w)); err != nil {
 			return errors.Wrapf(err, "failed to encode account_auths weight for %s", k)
 		}
 	}
 
-	keyAuthKeys := make([]string, 0, len(a.KeyAuths))
+	// Parse each key once, up front: flat_map key order for
+	// public_key_type is the binary 33-byte representation order (not the
+	// STM string order), and a parse failure must surface here rather than
+	// silently reordering the map.
+	type keyedKey struct{ str, bin string }
+	keys := make([]keyedKey, 0, len(a.KeyAuths))
 	for k := range a.KeyAuths {
-		keyAuthKeys = append(keyAuthKeys, k)
-	}
-	// flat_map key order for public_key_type is the binary 33-byte
-	// representation order, not the STM string order.
-	sort.Slice(keyAuthKeys, func(i, j int) bool {
-		return authorityPubKeyBytes(keyAuthKeys[i]) < authorityPubKeyBytes(keyAuthKeys[j])
-	})
-	if err := encoderObj.EncodeUVarint(uint64(len(keyAuthKeys))); err != nil {
-		return errors.Wrap(err, "failed to encode key_auths length")
-	}
-	for _, k := range keyAuthKeys {
 		pubKey := &wif.PublicKey{}
 		if err := pubKey.FromStr(k); err != nil {
 			return errors.Wrapf(err, "failed to parse key_auths public key %s", k)
 		}
-		if err := encoderObj.WriteBytes(pubKey.ToByte()); err != nil {
-			return errors.Wrapf(err, "failed to encode key_auths public key %s", k)
+		keys = append(keys, keyedKey{k, string(pubKey.ToByte())})
+	}
+	sort.Slice(keys, func(i, j int) bool { return keys[i].bin < keys[j].bin })
+	if err := encoderObj.EncodeUVarint(uint64(len(keys))); err != nil {
+		return errors.Wrap(err, "failed to encode key_auths length")
+	}
+	for _, key := range keys {
+		if err := encoderObj.WriteBytes([]byte(key.bin)); err != nil {
+			return errors.Wrapf(err, "failed to encode key_auths public key %s", key.str)
 		}
-		if err := encoderObj.EncodeNumber(uint16(a.KeyAuths[k])); err != nil {
-			return errors.Wrapf(err, "failed to encode key_auths weight for %s", k)
+		w := a.KeyAuths[key.str]
+		if w < 0 || w > 0xffff {
+			return errors.Errorf("key_auths weight for %s out of uint16 range: %d", key.str, w)
+		}
+		if err := encoderObj.EncodeNumber(uint16(w)); err != nil {
+			return errors.Wrapf(err, "failed to encode key_auths weight for %s", key.str)
 		}
 	}
 	return nil
-}
-
-// authorityPubKeyBytes renders the binary form of a STM public key for
-// flat_map ordering comparisons.
-func authorityPubKeyBytes(key string) string {
-	pubKey := &wif.PublicKey{}
-	if err := pubKey.FromStr(key); err != nil {
-		return ""
-	}
-	return string(pubKey.ToByte())
 }
 
 // FC_REFLECT( steemit::chain::witness_update_operation,
@@ -1154,32 +1125,79 @@ func (op *CancelTransferFromSavingsOperation) Data() any {
 	return op
 }
 
-// FC_REFLECT( steemit::chain::custom_binary_operation,
+// FC_REFLECT( steem::protocol::custom_binary_operation,
+//             (required_owner_auths)
+//             (required_active_auths)
+//             (required_posting_auths)
+//             (required_auths)
 //             (id)
 //             (data) )
 
 type CustomBinaryOperation struct {
-	ID        string `json:"id"`
-	DataBytes string `json:"data"`
+	RequiredOwnerAuths   []string     `json:"required_owner_auths"`
+	RequiredActiveAuths  []string     `json:"required_active_auths"`
+	RequiredPostingAuths []string     `json:"required_posting_auths"`
+	RequiredAuths        []*Authority `json:"required_auths"`
+	ID                   string       `json:"id"`
+	DataBytes            string       `json:"data"`
 }
 
-// MarshalTransaction encodes id as string, then data as length-prefixed raw bytes (DataBytes is hex string).
-// The operation type code is written first, matching the generic operation
-// encoding path (steem::protocol::custom_binary_operation op id 35 in the
-// operation static_variant) — without it the transaction digest is wrong.
+// MarshalTransaction encodes the operation per C++ FC_REFLECT order:
+// type code, then the three account flat_sets (sorted, length-prefixed),
+// required_auths (vector<authority> — order preserved, NOT sorted), id,
+// then data as length-prefixed raw bytes (DataBytes is a hex string).
+//
+// The first four fields must be on the wire even when empty (a bare 0x00
+// length byte each) or the transaction digest the chain computes will not
+// match. Note steem-js's serializer omits all four auth sets entirely, so
+// its custom_binary fixtures cannot be used as golden data here (see the
+// skip list in transaction/serializer_crosslang_test.go).
 func (op *CustomBinaryOperation) MarshalTransaction(encoderObj *encoder.Encoder) error {
 	if err := encoderObj.EncodeUVarint(uint64(op.Type().Code())); err != nil {
 		return errors.Wrap(err, "failed to encode operation type code")
 	}
+
+	authSets := []struct {
+		name  string
+		auths []string
+	}{
+		{"required_owner_auths", op.RequiredOwnerAuths},
+		{"required_active_auths", op.RequiredActiveAuths},
+		{"required_posting_auths", op.RequiredPostingAuths},
+	}
+	for _, set := range authSets {
+		// flat_set serialization requires sorted order.
+		sorted := make([]string, len(set.auths))
+		copy(sorted, set.auths)
+		sort.Strings(sorted)
+		if err := encoderObj.EncodeUVarint(uint64(len(sorted))); err != nil {
+			return errors.Wrapf(err, "failed to encode %s length", set.name)
+		}
+		for _, account := range sorted {
+			if err := encoderObj.Encode(account); err != nil {
+				return errors.Wrapf(err, "failed to encode %s account %s", set.name, account)
+			}
+		}
+	}
+
+	if err := encoderObj.EncodeUVarint(uint64(len(op.RequiredAuths))); err != nil {
+		return errors.Wrap(err, "failed to encode required_auths length")
+	}
+	for _, auth := range op.RequiredAuths {
+		if err := encoderObj.Encode(auth); err != nil {
+			return errors.Wrap(err, "failed to encode required_auths authority")
+		}
+	}
+
 	if err := encoderObj.Encode(op.ID); err != nil {
-		return err
+		return errors.Wrap(err, "failed to encode id")
 	}
 	data, err := hex.DecodeString(op.DataBytes)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "custom_binary data is not valid hex")
 	}
 	if err := encoderObj.EncodeUVarint(uint64(len(data))); err != nil {
-		return err
+		return errors.Wrap(err, "failed to encode data length")
 	}
 	return encoderObj.WriteBytes(data)
 }

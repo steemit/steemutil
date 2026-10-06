@@ -3,14 +3,22 @@ package protocol
 import (
 	"encoding/json"
 	"errors"
+	"sort"
 )
 
 type StringInt64Map map[string]int64
 
 func (m StringInt64Map) MarshalJSON() ([]byte, error) {
+	// Emit entries sorted by key: the chain's flat_map serializes in key
+	// order, and deterministic output keeps generated fixtures byte-stable.
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
 	xs := make([][]interface{}, 0, len(m))
-	for k, v := range m {
-		xs = append(xs, []interface{}{k, v})
+	for _, k := range keys {
+		xs = append(xs, []interface{}{k, m[k]})
 	}
 	return json.Marshal(xs)
 }

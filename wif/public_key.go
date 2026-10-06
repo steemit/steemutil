@@ -34,6 +34,9 @@ func (p *PublicKey) FromByte(raw []byte) (err error) {
 func (p *PublicKey) FromStr(pubKey string) (err error) {
 	// check prefix
 	prefixLen := len(consts.ADDRESS_PREFIX)
+	if len(pubKey) < prefixLen+4 { // prefix + at least a 4-byte checksum payload
+		return errors.New("public key is too short")
+	}
 	prefix := pubKey[0:prefixLen]
 	if prefix != consts.ADDRESS_PREFIX {
 		return errors.New("public key has an error prefix")
@@ -41,6 +44,12 @@ func (p *PublicKey) FromStr(pubKey string) (err error) {
 	// get pub key without prefix
 	pubKeyWithoutPrefix := pubKey[prefixLen:]
 	pubKeyByte := base58.Decode(pubKeyWithoutPrefix)
+
+	// 33-byte key + 4-byte checksum; anything shorter cannot be valid and
+	// would otherwise slice out of range below.
+	if len(pubKeyByte) < 33+4 {
+		return errors.New("public key is too short")
+	}
 
 	// check checksum
 	pubKeyOri := pubKeyByte[0 : len(pubKeyByte)-4]

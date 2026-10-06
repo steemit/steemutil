@@ -2,6 +2,7 @@ package encoder
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"io"
 	"reflect"
 	"strconv"
@@ -321,7 +322,8 @@ func (encoder *Encoder) encodeStruct(rv reflect.Value) error {
 				fieldName == "MaxAcceptedPayout" || fieldName == "DailyPay" ||
 				fieldName == "AmountIn" || fieldName == "AmountOut" ||
 				fieldName == "Payout" || fieldName == "Interest" ||
-				fieldName == "CurrentPays" || fieldName == "OpenPays"
+				fieldName == "CurrentPays" || fieldName == "OpenPays" ||
+				fieldName == "Withdrawn" || fieldName == "Deposited"
 			if taggedAsset || nameListed {
 				assetStr := field.String()
 				amount, precision, symbol, err := encoder.parseAssetString(assetStr)
@@ -351,6 +353,35 @@ func (encoder *Encoder) encodeStruct(rv reflect.Value) error {
 		if field.Kind() == reflect.String && fieldType.Tag.Get("steem") == "pubkey" {
 			if err := encoder.encodePubKey(field.String()); err != nil {
 				return errors.Wrapf(err, "failed to encode public key field %s", fieldType.Name)
+			}
+			continue
+		}
+
+		// Check if this is a raw binary field (tagged steem:"hexbytes" or
+		// steem:"hexbytes<N>"). Chain types such as digest_type (fc::sha256,
+		// 32 bytes), block_id_type (fc::ripemd160, 20 bytes) and
+		// compact_signature (65 bytes) serialize as bare fixed-size byte
+		// arrays with no length prefix; the Go struct carries them as hex
+		// strings. "hexbytes" accepts any length, "hexbytes<N>" requires
+		// exactly N bytes.
+		if field.Kind() == reflect.String && strings.HasPrefix(fieldType.Tag.Get("steem"), "hexbytes") {
+			wantLen := -1
+			if lenStr := fieldType.Tag.Get("steem")[len("hexbytes"):]; lenStr != "" {
+				n, err := strconv.Atoi(lenStr)
+				if err != nil || n < 0 {
+					return errors.Errorf("invalid steem:\"%s\" tag on field %s", fieldType.Tag.Get("steem"), fieldType.Name)
+				}
+				wantLen = n
+			}
+			raw, err := hex.DecodeString(field.String())
+			if err != nil {
+				return errors.Wrapf(err, "failed to decode hex field %s (value %q)", fieldType.Name, field.String())
+			}
+			if wantLen >= 0 && len(raw) != wantLen {
+				return errors.Errorf("hex field %s must be exactly %d bytes, got %d", fieldType.Name, wantLen, len(raw))
+			}
+			if err := encoder.WriteBytes(raw); err != nil {
+				return errors.Wrapf(err, "failed to encode hex field %s", fieldType.Name)
 			}
 			continue
 		}

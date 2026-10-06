@@ -32,16 +32,24 @@ func TestSerializerCrossLangFixtures(t *testing.T) {
 	}
 
 	// Ops whose Go structs are known to diverge from steem-js's current
-	// serializer. pow: the C++ chain reference requires worker as a 33-byte
-	// binary public key and input/signature/work as raw byte arrays, while
-	// steem-js encodes all inner fields as strings (and adds an optional
-	// presence byte to the nonce) — the two encodings are mutually
-	// incompatible. steemutil follows the C++ reference, so this replay
-	// cannot byte-match steem-js's pow fixture; see the wire-format note on
-	// protocol.POW for details. pow is a long-deactivated mining op and no
-	// live path serializes it, so the divergence is accepted rather than
-	// replicating steem-js's (wrong) encoding here.
-	skipOps := map[string]bool{"pow": true}
+	// serializer, so their fixtures cannot serve as golden data. In both
+	// cases steemutil follows the C++ chain reference instead:
+	//
+	// pow: the C++ FC_REFLECT(pow, ...) requires worker as a 33-byte binary
+	// public key and input/signature/work as raw byte arrays (and pow_operation
+	// carries block_id as 20 raw bytes with a bare uint64 nonce), while steem-js
+	// encodes the inner fields as strings (and adds an optional presence byte to
+	// the nonce) — mutually incompatible. pow is a long-deactivated mining op
+	// and no live path serializes it; see the wire-format note on protocol.POW.
+	//
+	// custom_binary: the C++ FC_REFLECT(custom_binary_operation, ...) starts
+	// with four auth sets (required_owner_auths/required_active_auths/
+	// required_posting_auths/required_auths) that must be on the wire even
+	// when empty; steem-js's serializer omits all four entirely, so its
+	// fixture hex is missing the four length bytes the chain's digest
+	// includes. Aligning steem-js would be a separate change in that
+	// repository.
+	skipOps := map[string]bool{"pow": true, "custom_binary": true}
 
 	checked := 0
 	for _, e := range entries {
