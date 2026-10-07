@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/steemit/steemutil/encoder"
 )
 
@@ -21,7 +22,7 @@ func (t *Time) MarshalJSON() ([]byte, error) {
 func (t *Time) UnmarshalJSON(data []byte) error {
 	// Remove quotes if present
 	timeStr := strings.Trim(string(data), `"`)
-	
+
 	// Try parsing with the layout (without quotes)
 	parsed, err := time.ParseInLocation(LayoutWithoutQuotes, timeStr, time.UTC)
 	if err != nil {
@@ -40,5 +41,8 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 }
 
 func (t *Time) MarshalTransaction(encoderObj *encoder.Encoder) error {
+	if t == nil || t.Time == nil {
+		return errors.New("cannot marshal nil time")
+	}
 	return encoderObj.Encode(uint32(t.Time.Unix()))
 }

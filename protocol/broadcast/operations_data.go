@@ -180,7 +180,7 @@ var OperationsData = []BroadcastOperation{
 	{
 		Roles: []string{"posting", "active", "owner"},
 		Operation: "custom_binary",
-		Params: []string{"id", "data"},
+		Params: []string{"required_owner_auths", "required_active_auths", "required_posting_auths", "required_auths", "id", "data"},
 	},
 	{
 		Roles: []string{"owner"},

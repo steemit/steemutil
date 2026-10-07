@@ -9,8 +9,9 @@ import (
 )
 
 // PublicKey used across all tests:
-//   STM8m5UgaFAAYQRuaNejYdS8FVLVp9Ss3K1qAVk5de6F8s3HnVbvA
-//   Binary (33 bytes): 03fdf4907810a9f5d9462a1ae09feee5ab205d32798b0ffcc379442021f84c5bbf
+//
+//	STM8m5UgaFAAYQRuaNejYdS8FVLVp9Ss3K1qAVk5de6F8s3HnVbvA
+//	Binary (33 bytes): 03fdf4907810a9f5d9462a1ae09feee5ab205d32798b0ffcc379442021f84c5bbf
 const testPubKey = "STM8m5UgaFAAYQRuaNejYdS8FVLVp9Ss3K1qAVk5de6F8s3HnVbvA"
 
 func encodeOp(t *testing.T, op interface{}) []byte {
@@ -65,7 +66,7 @@ func TestAccountCreateSerialization(t *testing.T) {
 		JsonMetadata:   "{}",
 	}
 	assertHex(t, "AccountCreate", encodeOp(t, op),
-		"09000000000000000003535445454d00000763726561746f720a6e65776163636f756e7400000100000000000100000000000100000003fdf4907810a9f5d9462a1ae09feee5ab205d32798b0ffcc379442021f84c5bbf027b7d")
+		"09000000000000000003535445454d00000763726561746f720a6e65776163636f756e7401000000000001000000000001000000000003fdf4907810a9f5d9462a1ae09feee5ab205d32798b0ffcc379442021f84c5bbf027b7d")
 }
 
 // TestAccountUpdateSerialization verifies optional authority fields (nil → 0x00)
@@ -115,7 +116,7 @@ func TestCreateClaimedAccountSerialization(t *testing.T) {
 		Extensions:     []interface{}{},
 	}
 	assertHex(t, "CreateClaimedAccount", encodeOp(t, op),
-		"170763726561746f720a6e65776163636f756e7400000100000000000100000000000100000003fdf4907810a9f5d9462a1ae09feee5ab205d32798b0ffcc379442021f84c5bbf027b7d00")
+		"170763726561746f720a6e65776163636f756e7401000000000001000000000001000000000003fdf4907810a9f5d9462a1ae09feee5ab205d32798b0ffcc379442021f84c5bbf027b7d00")
 }
 
 // TestAccountCreateWithDelegationSerialization verifies memo_key pubkey encoding
@@ -134,5 +135,5 @@ func TestAccountCreateWithDelegationSerialization(t *testing.T) {
 		Extensions:     []interface{}{},
 	}
 	assertHex(t, "AccountCreateWithDelegation", encodeOp(t, op),
-		"29000000000000000003535445454d000040420f000000000006564553545300000763726561746f720a6e65776163636f756e7400000100000000000100000000000100000003fdf4907810a9f5d9462a1ae09feee5ab205d32798b0ffcc379442021f84c5bbf027b7d00")
+		"29000000000000000003535445454d000040420f000000000006564553545300000763726561746f720a6e65776163636f756e7401000000000001000000000001000000000003fdf4907810a9f5d9462a1ae09feee5ab205d32798b0ffcc379442021f84c5bbf027b7d00")
 }
