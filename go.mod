@@ -2,6 +2,8 @@ module github.com/steemit/steemutil
 
 go 1.18
 
+toolchain go1.27.3
+
 require (
 	github.com/btcsuite/btcd v0.23.0
 	github.com/btcsuite/btcd/btcec/v2 v2.1.3
