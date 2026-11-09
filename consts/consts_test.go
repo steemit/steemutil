@@ -13,8 +13,8 @@ func TestSetAddressPrefixValidation(t *testing.T) {
 		{"TST", false},
 		{"STM", false},
 		{"", true},
-		{"tst", true},   // lowercase rejected
-		{"TS1", true},   // digit rejected
+		{"tst", true},        // lowercase rejected
+		{"TS1", true},        // digit rejected
 		{"TSTTSTTSTT", true}, // > 8 chars rejected
 	}
 	for _, c := range cases {
