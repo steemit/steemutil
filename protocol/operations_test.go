@@ -742,3 +742,131 @@ func TestPOWOperation_Type(t *testing.T) {
 		t.Errorf("expected TypePOW, got %v", op.Type())
 	}
 }
+
+// Real block_api.get_block payload of block 4,132,598 (mainnet, 2016-08-16):
+// the first pow2-mined account whose missed registration surfaced the
+// broken flat model in the hivemind Go indexer sync.
+func TestPOW2Operation_UnmarshalJSON_BlockAPIObjectShape(t *testing.T) {
+	jsonData := `{"work":{"type":"pow2","value":{"input":{"worker_account":"movietrailers","prev_block":"003f0ef560dd1633de7d7636b10267bf58dc2acb","nonce":"5930571705625900649"},"pow_summary":3831524938}},"new_owner_key":"STM6YFuiUYBsqFHneJ87jh4VVj7tH3aRY49WujWHeSvnSgznXKRWr","props":{"account_creation_fee":{"amount":"1","nai":"@@000000021","precision":3},"maximum_block_size":131072,"sbd_interest_rate":1000}}`
+
+	var op POW2Operation
+	if err := json.Unmarshal([]byte(jsonData), &op); err != nil {
+		t.Fatalf("failed to unmarshal pow2_operation: %v", err)
+	}
+	if op.Work == nil || op.Work.Value == nil || op.Work.Value.Input == nil {
+		t.Fatalf("expected nested work.value.input to survive unmarshal, got %+v", op)
+	}
+	if got := op.Work.Value.Input.WorkerAccount; got != "movietrailers" {
+		t.Errorf("expected WorkerAccount 'movietrailers', got %q", got)
+	}
+	if op.Work.Type != "pow2" {
+		t.Errorf("Work.Type = %q, want pow2", op.Work.Type)
+	}
+	if op.Work.Value.POWSummary != 3831524938 {
+		t.Errorf("POWSummary = %d, want 3831524938", op.Work.Value.POWSummary)
+	}
+	if op.NewOwnerKey == nil || *op.NewOwnerKey != "STM6YFuiUYBsqFHneJ87jh4VVj7tH3aRY49WujWHeSvnSgznXKRWr" {
+		t.Errorf("unexpected NewOwnerKey: %v", op.NewOwnerKey)
+	}
+	if op.Props == nil || op.Props.MaximumBlockSize != 131072 {
+		t.Errorf("expected props.maximum_block_size 131072, got %+v", op.Props)
+	}
+
+	// End-to-end over the Operations dispatch used by block decoding: the
+	// op must re-marshal (op.Data()) into the map shape legacy consumers
+	// key on: work.value.input.worker_account (legacy blocks.py:79 and the
+	// Go indexer's extractAccountName use the same path).
+	var ops Operations
+	if err := json.Unmarshal([]byte(`[["pow2",`+jsonData+`]]`), &ops); err != nil {
+		t.Fatalf("failed to unmarshal Operations tuple: %v", err)
+	}
+	if len(ops) != 1 {
+		t.Fatalf("expected 1 op, got %d", len(ops))
+	}
+	re, err := json.Marshal(ops[0].Data())
+	if err != nil {
+		t.Fatalf("failed to re-marshal op data: %v", err)
+	}
+	var m map[string]any
+	if err := json.Unmarshal(re, &m); err != nil {
+		t.Fatalf("failed to re-unmarshal to map: %v", err)
+	}
+	work, _ := m["work"].(map[string]any)
+	value, _ := work["value"].(map[string]any)
+	input, _ := value["input"].(map[string]any)
+	if input["worker_account"] != "movietrailers" {
+		t.Errorf("re-marshaled map lost worker_account: %v", m)
+	}
+}
+
+// condenser_api.get_block serializes the pow2 static_variant as [0, payload]
+// (verified live against a 0.23.1 node, block 4,132,598) and renders assets
+// as legacy strings. Both must decode, and re-marshal must keep the object
+// form work.value.input.worker_account.
+func TestPOW2Operation_UnmarshalJSON_CondenserArrayShape(t *testing.T) {
+	jsonData := `{"work":[0,{"input":{"nonce":"5930571705625900649","prev_block":"003f0ef560dd1633de7d7636b10267bf58dc2acb","worker_account":"movietrailers"},"pow_summary":3831524938}],"new_owner_key":"STM6YFuiUYBsqFHneJ87jh4VVj7tH3aRY49WujWHeSvnSgznXKRWr","props":{"account_creation_fee":"0.001 STEEM","account_subsidy_budget":797,"account_subsidy_decay":347321,"maximum_block_size":131072,"sbd_interest_rate":1000}}`
+
+	var op POW2Operation
+	if err := json.Unmarshal([]byte(jsonData), &op); err != nil {
+		t.Fatalf("failed to unmarshal condenser pow2_operation: %v", err)
+	}
+	if op.Work == nil || op.Work.Value == nil || op.Work.Value.Input == nil {
+		t.Fatalf("expected nested work.value.input, got %+v", op)
+	}
+	if got := op.Work.Value.Input.WorkerAccount; got != "movietrailers" {
+		t.Errorf("WorkerAccount = %q, want movietrailers", got)
+	}
+	if op.Work.Type != "pow2" {
+		t.Errorf("Work.Type = %q, want pow2 (static_variant index 0)", op.Work.Type)
+	}
+	if op.NewOwnerKey == nil || *op.NewOwnerKey != "STM6YFuiUYBsqFHneJ87jh4VVj7tH3aRY49WujWHeSvnSgznXKRWr" {
+		t.Errorf("unexpected NewOwnerKey: %v", op.NewOwnerKey)
+	}
+	if op.Props == nil || op.Props.AccountCreationFee != "0.001 STEEM" {
+		t.Errorf("unexpected props: %+v", op.Props)
+	}
+	// re-marshal keeps the object form consumers key on
+	out, err := json.Marshal(&op)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var m map[string]any
+	json.Unmarshal(out, &m)
+	work, _ := m["work"].(map[string]any)
+	value, _ := work["value"].(map[string]any)
+	input, _ := value["input"].(map[string]any)
+	if input["worker_account"] != "movietrailers" {
+		t.Errorf("re-marshaled object form lost worker_account: %s", out)
+	}
+}
+
+// The second pow2_work alternative (static_variant index 1) shares pow2_input
+// with pow2 and adds proof and prev_block (steem_operations.hpp: struct
+// equihash_pow). Synthetic payload built from the struct definition; no
+// mainnet sample was located.
+func TestPOW2Operation_UnmarshalJSON_EquihashPowVariant(t *testing.T) {
+	jsonData := `{"work":[1,{"input":{"nonce":"42","prev_block":"003f0ef560dd1633de7d7636b10267bf58dc2acb","worker_account":"movietrailers"},"proof":{"min_wheel_rounds":1,"nonce":"x"},"prev_block":"003f0ef560dd1633de7d7636b10267bf58dc2acb","pow_summary":7}],"props":{"account_creation_fee":"0.001 STEEM","maximum_block_size":131072,"sbd_interest_rate":1000}}`
+
+	var op POW2Operation
+	if err := json.Unmarshal([]byte(jsonData), &op); err != nil {
+		t.Fatalf("failed to unmarshal equihash_pow work: %v", err)
+	}
+	if op.Work.Type != "equihash_pow" {
+		t.Errorf("Work.Type = %q, want equihash_pow (static_variant index 1)", op.Work.Type)
+	}
+	if op.Work.Value == nil || op.Work.Value.Input == nil || op.Work.Value.Input.WorkerAccount != "movietrailers" {
+		t.Fatalf("worker_account not decoded: %+v", op.Work)
+	}
+	if op.NewOwnerKey != nil {
+		t.Errorf("NewOwnerKey = %q, want nil (absent on the wire)", *op.NewOwnerKey)
+	}
+}
+
+func TestPOW2Work_UnmarshalJSON_MalformedArray(t *testing.T) {
+	for _, data := range []string{`[0]`, `[1,2,3]`, `["x",{}]`} {
+		var w POW2Work
+		if err := json.Unmarshal([]byte(data), &w); err == nil {
+			t.Errorf("%s: expected an error", data)
+		}
+	}
+}

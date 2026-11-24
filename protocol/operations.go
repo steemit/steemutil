@@ -1047,13 +1047,76 @@ func (op *EscrowApproveOperation) Data() any {
 	return op
 }
 
-// FC_REFLECT( steemit::chain::pow2_operation,
-//             (input)
-//             (pow_summary) )
+// pow2_operation as served by condenser_api.get_block and block_api.get_block:
+// a static_variant work payload, an optional owner key and the chain
+// properties (steem_operations.hpp: pow2_operation). The two APIs serialize
+// the static_variant differently:
+//
+//	condenser_api.get_block: "work": [0, {"input": {...}, "pow_summary": N}]
+//	block_api.get_block:     "work": {"type": "pow2", "value": {"input": {...}, "pow_summary": N}}
+//
+// The previous model was a flat {"input": string, "pow_summary": ...},
+// which matched neither form: work, new_owner_key and props were dropped
+// as unknown fields and input was coerced to a string, so
+// work.value.input.worker_account was never available. An indexer keyed on
+// that path misses every pow2-mined account (pow2 era starts 2016-08).
 
 type POW2Operation struct {
-	Input      string `json:"input"`
-	POWSummary any    `json:"pow_summary"`
+	Work        *POW2Work        `json:"work"`
+	NewOwnerKey *string          `json:"new_owner_key"` // optional on the chain; nil when absent
+	Props       *ChainProperties `json:"props"`
+}
+
+// POW2Work is the static_variant<pow2, equihash_pow> wrapper around the work
+// payload. On the wire it appears in two shapes: condenser_api.get_block
+// serializes the static_variant as [index, payload], while block_api emits
+// {"type": "...", "value": {...}}. Unmarshal accepts both; Marshal always
+// emits the object form so consumers keying on
+// work.value.input.worker_account (legacy hive blocks.py:79 and the Go
+// indexer's extractAccountName) see one stable shape.
+type POW2Work struct {
+	Type  string       `json:"type"`
+	Value *POW2Payload `json:"value"`
+}
+
+// pow2WorkTypes maps the static_variant index of pow2_work to its type name
+// (steem_operations.hpp: typedef fc::static_variant<pow2, equihash_pow>).
+// Both variants carry a pow2_input, so they share POW2Payload; the extra
+// equihash_pow fields (proof, prev_block) are ignored.
+var pow2WorkTypes = []string{"pow2", "equihash_pow"}
+
+func (w *POW2Work) UnmarshalJSON(data []byte) error {
+	var arr []json.RawMessage
+	if err := json.Unmarshal(data, &arr); err == nil {
+		if len(arr) != 2 {
+			return fmt.Errorf("pow2 work static_variant: expected [index, payload], got %d elements", len(arr))
+		}
+		var index int
+		if err := json.Unmarshal(arr[0], &index); err != nil {
+			return fmt.Errorf("pow2 work static_variant index: %w", err)
+		}
+		w.Type = "pow2"
+		if index >= 0 && index < len(pow2WorkTypes) {
+			w.Type = pow2WorkTypes[index]
+		}
+		return json.Unmarshal(arr[1], &w.Value)
+	}
+	type plain POW2Work
+	return json.Unmarshal(data, (*plain)(w))
+}
+
+// POW2Payload mirrors the pow2 struct (steem_operations.hpp:
+// FC_REFLECT (input)(pow_summary)).
+type POW2Payload struct {
+	Input      *POW2Input `json:"input"`
+	POWSummary uint32     `json:"pow_summary"`
+}
+
+// POW2Input mirrors pow2_input.
+type POW2Input struct {
+	WorkerAccount string `json:"worker_account"`
+	PrevBlock     string `json:"prev_block"` // 40-char hex block id
+	Nonce         string `json:"nonce"`      // uint64 on the wire, quoted in JSON
 }
 
 func (op *POW2Operation) Type() OpType {
