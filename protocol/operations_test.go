@@ -870,3 +870,101 @@ func TestPOW2Work_UnmarshalJSON_MalformedArray(t *testing.T) {
 		}
 	}
 }
+
+// Real pow2_operation of mainnet block 4,298,248 (2016-09), in both wire
+// forms. Its nonce (732916850) is at or below 0xffffffff, so steemd sends
+// it as a JSON number rather than a quoted string. v0.0.35 modelled nonce
+// as a plain string: this block failed to decode, and the hivemind Go sync
+// stopped on it.
+func TestPOW2Operation_UnmarshalJSON_NonceAsNumber(t *testing.T) {
+	propsCondenser := `"props":{"account_creation_fee":"0.001 STEEM","maximum_block_size":131072,"sbd_interest_rate":1000,"account_subsidy_budget":797,"account_subsidy_decay":347321}`
+	propsBlockAPI := `"props":{"account_creation_fee":{"amount":"1","precision":3,"nai":"@@000000021"},"maximum_block_size":131072,"sbd_interest_rate":1000}`
+	cases := map[string]string{
+		"condenser_api.get_block": `{"work":[0,{"input":{"worker_account":"gxt-1080-sc-0001","prev_block":"004196072657470045149018a51d8f3d9fc11bfd","nonce":732916850},"pow_summary":3844959648}],` + propsCondenser + `}`,
+		"block_api.get_block":     `{"work":{"type":"pow2","value":{"input":{"worker_account":"gxt-1080-sc-0001","prev_block":"004196072657470045149018a51d8f3d9fc11bfd","nonce":732916850},"pow_summary":3844959648}},` + propsBlockAPI + `}`,
+	}
+	for name, data := range cases {
+		var op POW2Operation
+		if err := json.Unmarshal([]byte(data), &op); err != nil {
+			t.Fatalf("%s: failed to unmarshal pow2_operation with a numeric nonce: %v", name, err)
+		}
+		if op.Work == nil || op.Work.Value == nil || op.Work.Value.Input == nil || op.Work.Value.Input.Nonce == nil {
+			t.Fatalf("%s: expected work.value.input.nonce to survive unmarshal, got %+v", name, op)
+		}
+		if got := uint64(*op.Work.Value.Input.Nonce); got != 732916850 {
+			t.Errorf("%s: nonce = %d, want 732916850", name, got)
+		}
+		if got := op.Work.Value.Input.WorkerAccount; got != "gxt-1080-sc-0001" {
+			t.Errorf("%s: worker_account = %q, want gxt-1080-sc-0001", name, got)
+		}
+		if op.Work.Type != "pow2" {
+			t.Errorf("%s: Work.Type = %q, want pow2", name, op.Work.Type)
+		}
+		if op.NewOwnerKey != nil {
+			t.Errorf("%s: NewOwnerKey = %q, want nil (absent on the wire)", name, *op.NewOwnerKey)
+		}
+
+		// Consumers re-marshal the operation into a map; worker_account must
+		// still be reachable through it.
+		out, err := json.Marshal(&op)
+		if err != nil {
+			t.Fatalf("%s: marshal: %v", name, err)
+		}
+		var m map[string]any
+		if err := json.Unmarshal(out, &m); err != nil {
+			t.Fatalf("%s: re-unmarshal: %v", name, err)
+		}
+		work, _ := m["work"].(map[string]any)
+		value, _ := work["value"].(map[string]any)
+		input, _ := value["input"].(map[string]any)
+		if input["worker_account"] != "gxt-1080-sc-0001" {
+			t.Errorf("%s: re-marshaled map lost worker_account: %s", name, out)
+		}
+	}
+}
+
+// pow2_input.nonce is a uint64 that arrives either as a JSON number or as a
+// quoted string, depending on its size (fc's JSON writer quotes values
+// above 0xffffffff). Both must decode; neither an absent field nor
+// garbage may pass as a nonce.
+func TestPOW2Input_NonceNumberOrString(t *testing.T) {
+	cases := map[string]struct {
+		raw  string
+		want uint64
+	}{
+		"number":                 {`732916850`, 732916850},
+		"number at the boundary": {`4294967295`, 4294967295},
+		"quoted string":          {`"5930571705625900649"`, 5930571705625900649},
+		"zero":                   {`0`, 0},
+		"max uint64":             {`"18446744073709551615"`, 18446744073709551615},
+		"not a number":           {`"abc"`, 0},
+		"beyond uint64":          {`18446744073709551616`, 0},
+		"float":                  {`1.5`, 0},
+	}
+	for name, tc := range cases {
+		var in POW2Input
+		err := json.Unmarshal([]byte(`{"worker_account":"w","prev_block":"00","nonce":`+tc.raw+`}`), &in)
+		switch name {
+		case "not a number", "beyond uint64", "float":
+			if err == nil {
+				t.Errorf("%s: expected an error, got nonce %v", name, in.Nonce)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("%s: unexpected error: %v", name, err)
+			continue
+		}
+		if in.Nonce == nil || uint64(*in.Nonce) != tc.want {
+			t.Errorf("%s: nonce = %v, want %d", name, in.Nonce, tc.want)
+		}
+	}
+
+	var missing POW2Input
+	if err := json.Unmarshal([]byte(`{"worker_account":"w","prev_block":"00"}`), &missing); err != nil {
+		t.Fatalf("absent nonce: unexpected error: %v", err)
+	}
+	if missing.Nonce != nil {
+		t.Errorf("absent nonce: Nonce = %v, want nil", *missing.Nonce)
+	}
+}
