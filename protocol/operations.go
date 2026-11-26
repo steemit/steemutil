@@ -1116,7 +1116,16 @@ type POW2Payload struct {
 type POW2Input struct {
 	WorkerAccount string `json:"worker_account"`
 	PrevBlock     string `json:"prev_block"` // 40-char hex block id
-	Nonce         string `json:"nonce"`      // uint64 on the wire, quoted in JSON
+
+	// Nonce is a uint64. fc's JSON writer (stringify_large_ints_and_doubles
+	// format) emits a uint64 above 0xffffffff as a quoted string and
+	// anything at or below it as a JSON number; POWOperation.Nonce meets the
+	// same dual form through UInt64. Both occur for mined nonces, which are
+	// searched for from small values upwards: mainnet block 4,132,598
+	// carries 5930571705625900649 (string) and block 4,298,248 carries
+	// 732916850 (number). v0.0.35 modelled the field as a plain string, so
+	// every block carrying a numeric nonce failed to decode.
+	Nonce *UInt64 `json:"nonce"`
 }
 
 func (op *POW2Operation) Type() OpType {
